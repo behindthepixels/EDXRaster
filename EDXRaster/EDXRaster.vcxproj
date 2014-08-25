@@ -18,6 +18,19 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Core\FrameBuffer.cpp" />
+    <ClCompile Include="Core\Renderer.cpp" />
+    <ClCompile Include="Utils\Mesh.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Core\FrameBuffer.h" />
+    <ClInclude Include="Core\Renderer.h" />
+    <ClInclude Include="Core\RendererState.h" />
+    <ClInclude Include="Core\Shader.h" />
+    <ClInclude Include="Utils\InputBuffer.h" />
+    <ClInclude Include="Utils\Mesh.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0415987F-A332-4396-A76B-D513CE6EBC78}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
