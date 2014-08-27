@@ -21,12 +21,14 @@
   <ItemGroup>
     <ClCompile Include="Core\FrameBuffer.cpp" />
     <ClCompile Include="Core\Renderer.cpp" />
+    <ClCompile Include="Core\Scene.cpp" />
     <ClCompile Include="Utils\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\FrameBuffer.h" />
     <ClInclude Include="Core\Renderer.h" />
     <ClInclude Include="Core\RendererState.h" />
+    <ClInclude Include="Core\Scene.h" />
     <ClInclude Include="Core\Shader.h" />
     <ClInclude Include="Utils\InputBuffer.h" />
     <ClInclude Include="Utils\Mesh.h" />

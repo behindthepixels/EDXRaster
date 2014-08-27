@@ -7,11 +7,15 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
+		template<typename T>
+		class VertexBuffer;
+		class IndexBuffer;
+
 		class Mesh
 		{
 		private:
-			RefPtr<class IVertexBuffer>	mpVertexBuf;
-			RefPtr<class IndexBuffer> mpIndexBuf;
+			RefPtr<VertexBuffer<struct Vertex_PositionNormalTex>> mpVertexBuf;
+			RefPtr<IndexBuffer> mpIndexBuf;
 
 		public:
 			void LoadPlane(const Vector3& pos,
@@ -19,7 +23,7 @@ namespace EDX
 				const Vector3& rot,
 				const float length);
 
-			const IVertexBuffer* GetVertexBuffer() const
+			const VertexBuffer<Vertex_PositionNormalTex>* GetVertexBuffer() const
 			{
 				return mpVertexBuf.Ptr();
 			}

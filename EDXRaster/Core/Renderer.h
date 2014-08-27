@@ -1,11 +1,6 @@
 #pragma once
 
 #include "RendererState.h"
-#include "FrameBuffer.h"
-#include "Shader.h"
-#include "../Utils/Mesh.h"
-
-#include "Math/Matrix.h"
 #include "Memory/RefPtr.h"
 
 #include "EDXPrerequisites.h"
@@ -18,13 +13,15 @@ namespace EDX
 		{
 		private:
 			RendererState mGlobalRenderStates;
-			FrameBuffer mFrameBuffer;
-			RefPtr<VertexShader> mpVertexShader;
+			RefPtr<class FrameBuffer> mpFrameBuffer;
+			RefPtr<class VertexShader> mpVertexShader;
+
+			RefPtr<class Scene> mpScene;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
-			void SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
-			void RenderMesh(const Mesh& mesh);
+			void SetRenderState(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
+			void RenderMesh(const class Mesh& mesh);
 		};
 
 	}

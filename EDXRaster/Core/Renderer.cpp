@@ -1,6 +1,11 @@
 
 #include "Renderer.h"
+#include "Shader.h"
+#include "FrameBuffer.h"
+#include "Scene.h"
+#include "../Utils/Mesh.h"
 #include "../Utils/InputBuffer.h"
+#include "Math/Matrix.h"
 
 #include <Windows.h>
 #include <gl/gl.h>
@@ -12,7 +17,10 @@ namespace EDX
 	{
 		void Renderer::Initialize(uint iScreenWidth, uint iScreenHeight)
 		{
-			mFrameBuffer.Init(iScreenWidth, iScreenHeight);
+			mpFrameBuffer = new FrameBuffer;
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight);
+
+			mpScene = new Scene;
 
 			mpVertexShader = new DefaultVertexShader;
 		}
@@ -92,10 +100,10 @@ namespace EDX
 
 				RasterTriangle tri = RasterTriangle(vA, vB, vC);
 
-				int minX = Math::Min(mFrameBuffer.GetWidth() * 16, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)));
-				int maxX = Math::Max(0, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)));
-				int minY = Math::Min(mFrameBuffer.GetHeight() * 16, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)));
-				int maxY = Math::Max(0, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)));
+				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)));
+				int maxX = Math::Min(mpFrameBuffer->GetWidth() * 16, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)));
+				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)));
+				int maxY = Math::Min(mpFrameBuffer->GetHeight() * 16, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)));
 
 				Vector2i vP;
 				for (vP.y = minY; vP.y <= maxY; vP.y += 16)
