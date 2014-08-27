@@ -9,8 +9,8 @@
 using namespace EDX;
 using namespace EDX::RasterRenderer;
 
-const int giWindowWidth = 1024;
-const int giWindowHeight = 768;
+const int giWindowWidth = 1280;
+const int giWindowHeight = 800;
 
 // Global variables
 Renderer		gRenderer;
@@ -26,7 +26,7 @@ void OnInit(Object* pSender, EventArgs args)
 	gCamera.Init(-5.0f * Vector3::UNIT_Z, Vector3::ZERO, Vector3::UNIT_Y, giWindowWidth, giWindowHeight);
 	gRenderer.Initialize(giWindowWidth, giWindowHeight);
 
-	gMesh.LoadPlane(Vector3::ZERO, Vector3::UNIT_SCALE, Vector3(-90.0f, 0.0f, 0.0f), 1.2f);
+	gMesh.LoadPlane(0, Vector3::UNIT_SCALE, Vector3(-90.0f, 0.0f, 0.0f), 1.2f);
 	//gMesh.GenBuffers();
 }
 
@@ -102,7 +102,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdArgs, int cmdS
 	mainWindow->SetMouseHandler(MouseEvent(OnMouseEvent));
 	mainWindow->SetkeyboardHandler(KeyboardEvent(OnKeyboardEvent));
 
-	mainWindow->Create(L"EDXRaster", 1280, 800);
+	mainWindow->Create(L"EDXRaster", giWindowWidth, giWindowHeight);
 
 	Application::Run(mainWindow);
 

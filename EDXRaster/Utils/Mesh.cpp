@@ -19,5 +19,19 @@ namespace EDX
 			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
 		}
+
+		void Mesh::LoadSphere(const Vector3& pos,
+			const Vector3& scl,
+			const Vector3& rot,
+			const float radius,
+			const int slices,
+			const int stacks)
+		{
+			ObjMesh mesh;
+			mesh.LoadSphere(pos, scl, rot, radius);
+
+			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
+			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
+		}
 	}
 }

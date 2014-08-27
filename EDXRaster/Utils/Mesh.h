@@ -23,6 +23,13 @@ namespace EDX
 				const Vector3& rot,
 				const float length);
 
+			void LoadSphere(const Vector3& pos,
+				const Vector3& scl,
+				const Vector3& rot,
+				const float radius,
+				const int slices = 64,
+				const int stacks = 64);
+
 			const VertexBuffer<Vertex_PositionNormalTex>* GetVertexBuffer() const
 			{
 				return mpVertexBuf.Ptr();

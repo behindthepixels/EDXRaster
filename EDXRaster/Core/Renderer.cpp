@@ -68,12 +68,12 @@ namespace EDX
 				RasterTriangle(const Vector3& a, const Vector3& b, const Vector3& c)
 				{
 					// Convert to fixed point
-					v0.x = (uint16)a.x * 16;
-					v0.y = (uint16)a.y * 16;
-					v1.x = (uint16)b.x * 16;
-					v1.y = (uint16)b.y * 16;
-					v2.x = (uint16)c.x * 16;
-					v2.y = (uint16)c.y * 16;
+					v0.x = (int16)a.x * 16;
+					v0.y = (int16)a.y * 16;
+					v1.x = (int16)b.x * 16;
+					v1.y = (int16)b.y * 16;
+					v2.x = (int16)c.x * 16;
+					v2.y = (int16)c.y * 16;
 
 					B0 = v1.y - v0.y;
 					C0 = v0.x - v1.x;
