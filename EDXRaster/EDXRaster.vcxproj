@@ -19,12 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Core\Clipper.cpp" />
     <ClCompile Include="Core\FrameBuffer.cpp" />
     <ClCompile Include="Core\Renderer.cpp" />
     <ClCompile Include="Core\Scene.cpp" />
     <ClCompile Include="Utils\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Core\Clipper.h" />
     <ClInclude Include="Core\FrameBuffer.h" />
     <ClInclude Include="Core\Renderer.h" />
     <ClInclude Include="Core\RendererState.h" />

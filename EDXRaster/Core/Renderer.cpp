@@ -1,6 +1,5 @@
 
 #include "Renderer.h"
-#include "Shader.h"
 #include "FrameBuffer.h"
 #include "Scene.h"
 #include "../Utils/Mesh.h"
@@ -35,18 +34,16 @@ namespace EDX
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
-			vector<VertexShaderOutput> vertOut;
-
 			auto pVertexBuf = mesh.GetVertexBuffer();
 			auto pIndexBuf = mesh.GetIndexBuffer();
 
-			vertOut.resize(pVertexBuf->GetVertexCount());
+			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
 			for (auto i = 0; i < pVertexBuf->GetVertexCount(); i++)
 			{
-				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &vertOut[i]);
+				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
 			}
 
-			for (auto& vertex : vertOut)
+			for (auto& vertex : mProjectedVertexBuf)
 			{
 				float fInvW = 1.0f / vertex.projectedPos.w;
 				vertex.projectedPos.x *= fInvW;
@@ -68,12 +65,12 @@ namespace EDX
 				RasterTriangle(const Vector3& a, const Vector3& b, const Vector3& c)
 				{
 					// Convert to fixed point
-					v0.x = (int16)a.x * 16;
-					v0.y = (int16)a.y * 16;
-					v1.x = (int16)b.x * 16;
-					v1.y = (int16)b.y * 16;
-					v2.x = (int16)c.x * 16;
-					v2.y = (int16)c.y * 16;
+					v0.x = (int)a.x * 16;
+					v0.y = (int)a.y * 16;
+					v1.x = (int)b.x * 16;
+					v1.y = (int)b.y * 16;
+					v2.x = (int)c.x * 16;
+					v2.y = (int)c.y * 16;
 
 					B0 = v1.y - v0.y;
 					C0 = v0.x - v1.x;
@@ -94,9 +91,9 @@ namespace EDX
 			for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
 			{
 				const uint* pIndex = pIndexBuf->GetIndex(i);
-				const Vector3& vA = vertOut[pIndex[0]].projectedPos.xyz();
-				const Vector3& vB = vertOut[pIndex[1]].projectedPos.xyz();
-				const Vector3& vC = vertOut[pIndex[2]].projectedPos.xyz();
+				const Vector3& vA = mProjectedVertexBuf[pIndex[0]].projectedPos.xyz();
+				const Vector3& vB = mProjectedVertexBuf[pIndex[1]].projectedPos.xyz();
+				const Vector3& vC = mProjectedVertexBuf[pIndex[2]].projectedPos.xyz();
 
 				RasterTriangle tri = RasterTriangle(vA, vB, vC);
 

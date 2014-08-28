@@ -33,6 +33,9 @@
     <ClCompile Include="Core\Scene.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Clipper.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\FrameBuffer.h">
@@ -54,6 +57,9 @@
       <Filter>Source Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Scene.h">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Clipper.h">
       <Filter>Source Files\Core</Filter>
     </ClInclude>
   </ItemGroup>

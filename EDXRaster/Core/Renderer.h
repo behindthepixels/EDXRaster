@@ -1,8 +1,9 @@
 #pragma once
 
 #include "RendererState.h"
-#include "Memory/RefPtr.h"
+#include "Shader.h"
 
+#include "Memory/RefPtr.h"
 #include "EDXPrerequisites.h"
 
 namespace EDX
@@ -15,8 +16,9 @@ namespace EDX
 			RendererState mGlobalRenderStates;
 			RefPtr<class FrameBuffer> mpFrameBuffer;
 			RefPtr<class VertexShader> mpVertexShader;
-
 			RefPtr<class Scene> mpScene;
+
+			vector<ProjectedVertex> mProjectedVertexBuf;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
