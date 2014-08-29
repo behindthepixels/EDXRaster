@@ -40,7 +40,7 @@ namespace EDX
 			const int stacks)
 		{
 			ObjMesh mesh;
-			mesh.LoadSphere(pos, scl, rot, radius);
+			mesh.LoadSphere(pos, scl, rot, radius, slices, stacks);
 
 			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());

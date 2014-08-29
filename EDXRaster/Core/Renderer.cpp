@@ -78,12 +78,12 @@ namespace EDX
 				bool Setup(const Vector3& a, const Vector3& b, const Vector3& c, const int id)
 				{
 					// Convert to fixed point
-					v0.x = (int)a.x * 16;
-					v0.y = (int)a.y * 16;
-					v1.x = (int)b.x * 16;
-					v1.y = (int)b.y * 16;
-					v2.x = (int)c.x * 16;
-					v2.y = (int)c.y * 16;
+					v0.x = a.x * 16.0;
+					v0.y = a.y * 16.0;
+					v1.x = b.x * 16.0;
+					v1.y = b.y * 16.0;
+					v2.x = c.x * 16.0;
+					v2.y = c.y * 16.0;
 
 					B0 = v1.y - v0.y;
 					C0 = v0.x - v1.x;
@@ -102,11 +102,16 @@ namespace EDX
 					return true;
 				}
 
-				bool Inside(const Vector2i& p)
+				int TopLeftEdge(const Vector2i& v1, const Vector2i& v2) const
 				{
-					return B0 * (p.x - v0.x) + C0 * (p.y - v0.y) <= 0 &&
-						B1 * (p.x - v1.x) + C1 * (p.y - v1.y) <= 0 &&
-						B2 * (p.x - v2.x) + C2 * (p.y - v2.y) <= 0;
+					return ((v2.y > v1.y) || (v1.y == v2.y && v1.x > v2.x)) ? 0 : 1;
+				}
+
+				bool Inside(const Vector2i& p) const
+				{
+					return B0 * (p.x - v0.x) + C0 * (p.y - v0.y) + TopLeftEdge(v0, v1) <= 0 &&
+						B1 * (p.x - v1.x) + C1 * (p.y - v1.y) + TopLeftEdge(v1, v2) <= 0 &&
+						B2 * (p.x - v2.x) + C2 * (p.y - v2.y) + TopLeftEdge(v2, v0) <= 0;
 				}
 
 				void CalcBarycentricCoord(const int x, const int y)
@@ -130,27 +135,27 @@ namespace EDX
 					i))
 					continue;
 
-				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)));
-				int maxX = Math::Min((mpFrameBuffer->GetWidth() - 1) * 16, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)));
-				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)));
-				int maxY = Math::Min((mpFrameBuffer->GetHeight() - 1) * 16, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)));
+				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) / 16);
+				int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) / 16);
+				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) / 16);
+				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) / 16);
 
 				Vector2i vP;
-				for (vP.y = minY; vP.y <= maxY; vP.y += 16)
+				for (vP.y = minY; vP.y <= maxY; vP.y++)
 				{
-					for (vP.x = minX; vP.x <= maxX; vP.x += 16)
+					for (vP.x = minX; vP.x <= maxX; vP.x++)
 					{
-						if (tri.Inside(vP + 8 * Vector2i::UNIT_SCALE))
+						if (tri.Inside(vP * 16 + 8 * Vector2i::UNIT_SCALE))
 						{
-							tri.CalcBarycentricCoord(vP.x + 8, vP.y + 8);
+							tri.CalcBarycentricCoord(vP.x * 16 + 8, vP.y * 16 + 8);
 							Fragment frag;
 							frag.SetupAndInterpolate(v0, v1, v2, tri.lambda0, tri.lambda1);
-							if (mpFrameBuffer->UpdateDepth(frag.depth, vP.x / 16, vP.y / 16))
+							if (mpFrameBuffer->UpdateDepth(frag.depth, vP.x, vP.y))
 							{
 								Color c = mpPixelShader->Shade(frag,
 									Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
 									Vector3(-1, 1, -1));
-								mpFrameBuffer->SetColor(c, vP.x / 16, vP.y / 16);
+								mpFrameBuffer->SetColor(c, vP.x, vP.y);
 							}
 						}
 					}
