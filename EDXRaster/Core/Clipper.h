@@ -2,6 +2,7 @@
 
 #include "EDXPrerequisites.h"
 #include "Shader.h"
+#include "../Utils/InputBuffer.h"
 
 namespace EDX
 {
@@ -9,7 +10,10 @@ namespace EDX
 	{
 		class Clipper
 		{
-			//void Clip(const vector<>)
+		public:
+			static void Clip(vector<ProjectedVertex> verticesIn, IndexBuffer* pIndexBuf)
+			{
+			}
 		};
 	}
 }

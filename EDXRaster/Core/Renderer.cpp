@@ -2,13 +2,10 @@
 #include "Renderer.h"
 #include "FrameBuffer.h"
 #include "Scene.h"
+#include "Clipper.h"
 #include "../Utils/Mesh.h"
 #include "../Utils/InputBuffer.h"
 #include "Math/Matrix.h"
-
-#include <Windows.h>
-#include <gl/gl.h>
-#include <gl/glu.h>
 
 namespace EDX
 {
@@ -16,24 +13,34 @@ namespace EDX
 	{
 		void Renderer::Initialize(uint iScreenWidth, uint iScreenHeight)
 		{
-			mpFrameBuffer = new FrameBuffer;
+			if (!mpFrameBuffer)
+			{
+				mpFrameBuffer = new FrameBuffer;
+			}
 			mpFrameBuffer->Init(iScreenWidth, iScreenHeight);
 
-			mpScene = new Scene;
+			if (!mpScene)
+			{
+				mpScene = new Scene;
+			}
 
 			mpVertexShader = new DefaultVertexShader;
+			mpPixelShader = new BlinnPhonePixelShader;
 		}
 
 		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
 		{
-			mGlobalRenderStates.mmModelView = mModelView;
-			mGlobalRenderStates.mmProj = mProj;
-			mGlobalRenderStates.mmModelViewProj = mProj * mModelView;
-			mGlobalRenderStates.mmRaster = mToRaster;
+			mGlobalRenderStates.mModelViewMatrix = mModelView;
+			mGlobalRenderStates.mModelViewInvMatrix = Matrix::Inverse(mModelView);
+			mGlobalRenderStates.mProjMatrix = mProj;
+			mGlobalRenderStates.mModelViewProjMatrix = mProj * mModelView;
+			mGlobalRenderStates.mRasterMatrix = mToRaster;
 		}
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
+			mpFrameBuffer->Clear();
+
 			auto pVertexBuf = mesh.GetVertexBuffer();
 			auto pIndexBuf = mesh.GetIndexBuffer();
 
@@ -43,26 +50,32 @@ namespace EDX
 				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
 			}
 
+			Clipper::Clip(mProjectedVertexBuf, pIndexBuf);
+
 			for (auto& vertex : mProjectedVertexBuf)
 			{
-				float fInvW = 1.0f / vertex.projectedPos.w;
-				vertex.projectedPos.x *= fInvW;
-				vertex.projectedPos.y *= fInvW;
-				vertex.projectedPos.z *= fInvW;
-				vertex.projectedPos.w *= fInvW;
+				float invW = 1.0f / vertex.projectedPos.w;
+				vertex.projectedPos.x *= invW;
+				vertex.projectedPos.y *= invW;
+				vertex.projectedPos.z *= invW;
+				vertex.projectedPos.w *= invW;
 
-				vertex.projectedPos = Matrix::TransformPoint(vertex.projectedPos, mGlobalRenderStates.mmRaster);
+				vertex.projectedPos = Matrix::TransformPoint(vertex.projectedPos, mGlobalRenderStates.mRasterMatrix);
+				vertex.invW = invW;
 			}
 
-			glPointSize(1.0f);
-			glBegin(GL_POINTS);
 
 			struct RasterTriangle
 			{
 				Vector2i v0, v1, v2;
 				int B0, C0, B1, C1, B2, C2;
 
-				RasterTriangle(const Vector3& a, const Vector3& b, const Vector3& c)
+				float invDet;
+				int triId;
+
+				float lambda0, lambda1; // Barycentric coordinates
+
+				bool Setup(const Vector3& a, const Vector3& b, const Vector3& c, const int id)
 				{
 					// Convert to fixed point
 					v0.x = (int)a.x * 16;
@@ -78,6 +91,15 @@ namespace EDX
 					C1 = v1.x - v2.x;
 					B2 = v0.y - v2.y;
 					C2 = v2.x - v0.x;
+
+					int det = C2 * B1 - C1 * B2;
+					if (det <= 0)
+						return false;
+
+					invDet = 1.0f / float(Math::Abs(det));
+					triId = id;
+
+					return true;
 				}
 
 				bool Inside(const Vector2i& p)
@@ -86,21 +108,32 @@ namespace EDX
 						B1 * (p.x - v1.x) + C1 * (p.y - v1.y) <= 0 &&
 						B2 * (p.x - v2.x) + C2 * (p.y - v2.y) <= 0;
 				}
+
+				void CalcBarycentricCoord(const int x, const int y)
+				{
+					lambda0 = (B1 * (v2.x - x) + C1 * (v2.y - y)) * invDet;
+					lambda1 = (B2 * (v2.x - x) + C2 * (v2.y - y)) * invDet;
+				}
 			};
 
 			for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
 			{
 				const uint* pIndex = pIndexBuf->GetIndex(i);
-				const Vector3& vA = mProjectedVertexBuf[pIndex[0]].projectedPos.xyz();
-				const Vector3& vB = mProjectedVertexBuf[pIndex[1]].projectedPos.xyz();
-				const Vector3& vC = mProjectedVertexBuf[pIndex[2]].projectedPos.xyz();
+				const ProjectedVertex& v0 = mProjectedVertexBuf[pIndex[0]];
+				const ProjectedVertex& v1 = mProjectedVertexBuf[pIndex[1]];
+				const ProjectedVertex& v2 = mProjectedVertexBuf[pIndex[2]];
 
-				RasterTriangle tri = RasterTriangle(vA, vB, vC);
+				RasterTriangle tri;
+				if (!tri.Setup(v0.projectedPos.xyz(),
+					v1.projectedPos.xyz(),
+					v2.projectedPos.xyz(),
+					i))
+					continue;
 
 				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)));
-				int maxX = Math::Min(mpFrameBuffer->GetWidth() * 16, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)));
+				int maxX = Math::Min((mpFrameBuffer->GetWidth() - 1) * 16, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)));
 				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)));
-				int maxY = Math::Min(mpFrameBuffer->GetHeight() * 16, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)));
+				int maxY = Math::Min((mpFrameBuffer->GetHeight() - 1) * 16, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)));
 
 				Vector2i vP;
 				for (vP.y = minY; vP.y <= maxY; vP.y += 16)
@@ -108,23 +141,27 @@ namespace EDX
 					for (vP.x = minX; vP.x <= maxX; vP.x += 16)
 					{
 						if (tri.Inside(vP + 8 * Vector2i::UNIT_SCALE))
-							glVertex2f(vP.x / 16, vP.y / 16);
+						{
+							tri.CalcBarycentricCoord(vP.x + 8, vP.y + 8);
+							Fragment frag;
+							frag.SetupAndInterpolate(v0, v1, v2, tri.lambda0, tri.lambda1);
+							if (mpFrameBuffer->UpdateDepth(frag.depth, vP.x / 16, vP.y / 16))
+							{
+								Color c = mpPixelShader->Shade(frag,
+									Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
+									Vector3(-1, 1, -1));
+								mpFrameBuffer->SetColor(c, vP.x / 16, vP.y / 16);
+							}
+						}
 					}
 				}
 
 			}
-			glEnd();
+		}
 
-			// 		glBegin(GL_TRIANGLES);
-			// 		for(auto i = 0; i < mesh.GetTriangleCount(); i++)
-			// 		{
-			// 			const uint* pIndex = mesh.GetIndexAt(i);
-			// 			glVertex2f(vVertOut[pIndex[0]].vTransformedPos.x, vVertOut[pIndex[0]].vTransformedPos.y);
-			// 			glVertex2f(vVertOut[pIndex[1]].vTransformedPos.x, vVertOut[pIndex[1]].vTransformedPos.y);
-			// 			glVertex2f(vVertOut[pIndex[2]].vTransformedPos.x, vVertOut[pIndex[2]].vTransformedPos.y);
-			// 		}
-			// 		glEnd();
-
+		const float* Renderer::GetBackBuffer() const
+		{
+			return mpFrameBuffer->GetColorBuffer();
 		}
 	}
 }

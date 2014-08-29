@@ -18,6 +18,11 @@ namespace EDX
 			RefPtr<IndexBuffer> mpIndexBuf;
 
 		public:
+			void LoadMesh(const Vector3& pos,
+				const Vector3& scl,
+				const Vector3& rot,
+				const char* path);
+
 			void LoadPlane(const Vector3& pos,
 				const Vector3& scl,
 				const Vector3& rot,
@@ -34,7 +39,7 @@ namespace EDX
 			{
 				return mpVertexBuf.Ptr();
 			}
-			const IndexBuffer* GetIndexBuffer() const
+			IndexBuffer* GetIndexBuffer() const
 			{
 				return mpIndexBuf.Ptr();
 			}

@@ -8,6 +8,18 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
+		void Mesh::LoadMesh(const Vector3& pos,
+			const Vector3& scl,
+			const Vector3& rot,
+			const char* path)
+		{
+			ObjMesh mesh;
+			mesh.LoadFromObj(pos, scl, rot, path);
+
+			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
+			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
+		}
+
 		void Mesh::LoadPlane(const Vector3& pos,
 			const Vector3& scl,
 			const Vector3& rot,

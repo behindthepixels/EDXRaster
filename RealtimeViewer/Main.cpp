@@ -13,32 +13,33 @@ const int giWindowWidth = 1280;
 const int giWindowHeight = 800;
 
 // Global variables
-Renderer		gRenderer;
+RefPtr<Renderer>		gRenderer;
 Camera			gCamera;
 Mesh			gMesh;
-uint			giVboId1;
-uint			giVboId2;
+//uint			giVboId1;
+//uint			giVboId2;
 
 void OnInit(Object* pSender, EventArgs args)
 {
 	glClearColor(0.4f, 0.5f, 0.65f, 1.0f);
 
+	gRenderer = new Renderer;
+	gRenderer->Initialize(giWindowWidth, giWindowHeight);
 	gCamera.Init(-5.0f * Vector3::UNIT_Z, Vector3::ZERO, Vector3::UNIT_Y, giWindowWidth, giWindowHeight);
-	gRenderer.Initialize(giWindowWidth, giWindowHeight);
 
-	gMesh.LoadPlane(0, Vector3::UNIT_SCALE, Vector3(-90.0f, 0.0f, 0.0f), 1.2f);
-	//gMesh.GenBuffers();
+	//gMesh.LoadSphere(Vector3::ZERO, Vector3::UNIT_SCALE, Vector3::ZERO, 0.8f);
+	gMesh.LoadMesh(Vector3(0, -10, 35), Vector3::UNIT_SCALE, Vector3(0, 180, 0), "../../Media/bunny.obj");
 }
 
 void OnRender(Object* pSender, EventArgs args)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gRenderer->SetRenderState(gCamera.GetViewMatrix(), gCamera.GetProjMatrix(), gCamera.GetRasterMatrix());
+	gRenderer->RenderMesh(gMesh);
 
-	gRenderer.SetRenderState(gCamera.GetViewMatrix(), gCamera.GetProjMatrix(), gCamera.GetRasterMatrix());
-	gRenderer.RenderMesh(gMesh);
+	glRasterPos3f(0.0f, 0.0f, 0.0f);
+	glDrawPixels(giWindowWidth, giWindowHeight, GL_RGBA, GL_FLOAT, gRenderer->GetBackBuffer());
 
 	// 	Matrix mView = gCamera.GetViewMatrix();
 	// 	glLoadTransposeMatrixf((float*)&mView);
@@ -66,7 +67,7 @@ void OnResize(Object* pSender, ResizeEventArgs args)
 	// Set opengl params
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0, args.Width, args.Height, 0, -1, 1);
+	glOrtho(0, args.Width, 0, args.Height, -1, 1);
 
 	// 	Matrix mProj = gCamera.GetProjMatrix();
 	// 	glLoadTransposeMatrixf((float*)&mProj);
@@ -78,6 +79,8 @@ void OnResize(Object* pSender, ResizeEventArgs args)
 
 void OnRelease(Object* pSender, EventArgs args)
 {
+	gRenderer.Dereference();
+	gMesh.~Mesh();
 }
 
 void OnMouseEvent(Object* pSender, MouseEventArgs args)
