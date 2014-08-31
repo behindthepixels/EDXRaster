@@ -58,8 +58,6 @@ namespace EDX
 				float& b1)
 			{
 				float b2 = 1.0f - b0 - b1;
-				depth = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
-
 				b0 *= v0.invW;
 				b1 *= v1.invW;
 				b2 *= v2.invW;
@@ -67,9 +65,22 @@ namespace EDX
 				b0 *= invB;
 				b1 *= invB;
 				b2 = 1.0f - b0 - b1;
+
 				position = b0 * v0.position + b1 * v1.position + b2 * v2.position;
 				normal = b0 * v0.normal + b1 * v1.normal + b2 * v2.normal;
 				texCoord = b0 * v0.texCoord + b1 * v1.texCoord + b2 * v2.texCoord;
+			}
+
+			float GetDepth(const ProjectedVertex& v0,
+				const ProjectedVertex& v1,
+				const ProjectedVertex& v2,
+				float b0,
+				float b1)
+			{
+				float b2 = 1.0f - b0 - b1;
+				depth = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
+
+				return depth;
 			}
 		};
 

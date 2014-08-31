@@ -2,7 +2,7 @@
 
 #include "RendererState.h"
 #include "Shader.h"
-
+#include "../Utils/InputBuffer.h"
 #include "Memory/RefPtr.h"
 #include "EDXPrerequisites.h"
 
@@ -20,6 +20,7 @@ namespace EDX
 			RefPtr<class Scene> mpScene;
 
 			vector<ProjectedVertex> mProjectedVertexBuf;
+			IndexBuffer mIndexBuf;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
@@ -27,6 +28,11 @@ namespace EDX
 			void RenderMesh(const class Mesh& mesh);
 
 			const float* GetBackBuffer() const;
+
+		private:
+			void VertexProcessing(const IVertexBuffer* pVertexBuf);
+			void Clipping(IndexBuffer* pSrcIdxBuf);
+			void FragmentProcessing();
 		};
 
 	}

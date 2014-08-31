@@ -23,7 +23,7 @@ namespace EDX
 		public:
 			void Init(uint iWidth, uint iHeight);
 			void SetColor(const Color& c, const int x, const int y);
-			bool UpdateDepth(const float d, const int x, const int y);
+			bool ZTest(const float d, const int x, const int y);
 			uint GetWidth() const { return mResX; }
 			uint GetHeight() const { return mResY; }
 			const float* GetColorBuffer() const

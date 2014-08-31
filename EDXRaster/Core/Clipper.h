@@ -8,6 +8,31 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
+		struct Polygon
+		{
+			struct Vertex
+			{
+				Vector4 pos;
+				Vector3 clipWeights;
+
+				Vertex(const Vector4& p = Vector4::ZERO, const Vector3& w = Vector3::ZERO)
+					: pos(p)
+					, clipWeights(w)
+				{
+				}
+			};
+
+			vector<Vertex> vertices;
+			void FromTriangle(const Vector4& v0, const Vector4& v1, const Vector4& v2)
+			{
+				vertices.resize(3);
+				vertices[0].pos = v0; vertices[1].pos = v1; vertices[2].pos = v2;
+				vertices[0].clipWeights = Vector3::UNIT_X;
+				vertices[1].clipWeights = Vector3::UNIT_Y;
+				vertices[2].clipWeights = Vector3::UNIT_Z;
+			}
+		};
+
 		class Clipper
 		{
 		private:
@@ -40,25 +65,167 @@ namespace EDX
 			}
 
 		public:
-			static void Clip(vector<ProjectedVertex>& verticesIn, IndexBuffer* pIndexBuf)
+			static void Clip(vector<ProjectedVertex>& verticesIn, IndexBuffer* pIndexBufOut, const IndexBuffer* pIndexBufSrc)
 			{
-				for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
+				for (auto i = 0; i < pIndexBufSrc->GetTriangleCount(); i++)
 				{
-					const uint* pIndex = pIndexBuf->GetIndex(i);
-					const Vector4& v0 = verticesIn[pIndex[0]].projectedPos;
-					const Vector4& v1 = verticesIn[pIndex[1]].projectedPos;
-					const Vector4& v2 = verticesIn[pIndex[2]].projectedPos;
+					const uint* pIndex = pIndexBufSrc->GetIndex(i);
+					int idx0 = pIndex[0], idx1 = pIndex[1], idx2 = pIndex[2];
+					const Vector4& v0 = verticesIn[idx0].projectedPos;
+					const Vector4& v1 = verticesIn[idx1].projectedPos;
+					const Vector4& v2 = verticesIn[idx2].projectedPos;
 
-					uint clipCode0 = ComputeClipCode(v0);
-					uint clipCode1 = ComputeClipCode(v1);
-					uint clipCode2 = ComputeClipCode(v2);
+					int clipVertIds[12];
 
-					if (!(clipCode0 | clipCode1 | clipCode2))
-						continue;
+					Polygon polygon0, polygon1;
+					polygon0.FromTriangle(v0, v1, v2);
 
-					if (!(clipCode0 & clipCode1 & clipCode2))
-						continue;
+					Polygon* pCurrPoly = &polygon0;
+					Polygon* pbuffPoly = &polygon1;
+					if (ClipPolygon(pCurrPoly, pbuffPoly))
+					{
+						if (pCurrPoly->vertices.size() < 3)
+							continue;
+
+						for (int j = 0; j < pCurrPoly->vertices.size(); j++)
+						{
+							Vector3 weight = pCurrPoly->vertices[j].clipWeights;
+							if (weight.x == 1.0f)
+							{
+								clipVertIds[j] = idx0;
+							}
+							else if (weight.y == 1.0f)
+							{
+								clipVertIds[j] = idx1;
+							}
+							else if (weight.z == 1.0f)
+							{
+								clipVertIds[j] = idx2;
+							}
+							else
+							{
+								clipVertIds[j] = verticesIn.size();
+								ProjectedVertex tmpVertex;
+								tmpVertex.projectedPos = pCurrPoly->vertices[j].pos;
+								tmpVertex.position = weight.x * verticesIn[idx0].position +
+									weight.y * verticesIn[idx1].position +
+									weight.z * verticesIn[idx2].position;
+								tmpVertex.normal = weight.x * verticesIn[idx0].normal +
+									weight.y * verticesIn[idx1].normal +
+									weight.z * verticesIn[idx2].normal;
+								tmpVertex.texCoord = weight.x * verticesIn[idx0].texCoord +
+									weight.y * verticesIn[idx1].texCoord +
+									weight.z * verticesIn[idx2].texCoord;
+
+								verticesIn.push_back(tmpVertex);
+							}
+						}
+
+						// Simple triangulation
+						for (int k = 2; k < pCurrPoly->vertices.size(); k++)
+						{
+							pIndexBufOut->AppendTriangle(clipVertIds[0], clipVertIds[k - 1], clipVertIds[k]);
+						}
+					}
+					else
+						pIndexBufOut->AppendTriangle(idx0, idx1, idx2);
 				}
+			}
+
+		private:
+			template<typename PredicateFunc, typename ComputeTFunc, typename ClipFunc>
+			static bool ClipByPlane(Polygon*& pInput, Polygon*& pBuffer, PredicateFunc predicate, ComputeTFunc computeT, ClipFunc clip)
+			{
+				bool shouldClip = false;
+				for (int i = 0; i < pInput->vertices.size(); i++)
+				{
+					if (!predicate(pInput->vertices[i].pos))
+					{
+						shouldClip = true;
+						break;
+					}
+				}
+				if (!shouldClip)
+					return false;
+
+				pBuffer->vertices.clear();
+				for (int i = 0; i < pInput->vertices.size(); i++)
+				{
+					int i1 = i + 1;
+					if (i1 == pInput->vertices.size()) i1 = 0;
+					Vector4 v0 = pInput->vertices[i].pos;
+					Vector4 v1 = pInput->vertices[i1].pos;
+					if (predicate(v0))
+					{
+						if (predicate(v1))
+						{
+							pBuffer->vertices.push_back(Polygon::Vertex(v1, pInput->vertices[i1].clipWeights));
+						}
+						else
+						{
+							float t = computeT(v0, v1);
+							Vector4 pos = v0 * (1 - t) + v1 * t;
+							clip(pos);
+							Vector3 weight = pInput->vertices[i].clipWeights * (1 - t) + pInput->vertices[i1].clipWeights * t;
+							pBuffer->vertices.push_back(Polygon::Vertex(pos, weight));
+						}
+					}
+					else
+					{
+						if (predicate(v1))
+						{
+							float t = computeT(v0, v1);
+							Vector4 pos = v0 * (1 - t) + v1 * t;
+							clip(pos);
+							Vector3 weight = pInput->vertices[i].clipWeights * (1 - t) + pInput->vertices[i1].clipWeights * t;
+							pBuffer->vertices.push_back(Polygon::Vertex(pos, weight));
+							pBuffer->vertices.push_back(Polygon::Vertex(v1, pInput->vertices[i1].clipWeights));
+						}
+					}
+				}
+				Polygon* tmp = pInput;
+				pInput = pBuffer;
+				pBuffer = tmp;
+				return true;
+			}
+		public:
+			static bool ClipPolygon(Polygon*& pInput, Polygon*& pBuffer)
+			{
+				bool rs = false;
+
+				rs = ClipByPlane(pInput, pBuffer, [](const Vector4& v) -> bool {return v.x >= -v.w; },
+					[](const Vector4& v0, const Vector4& v1) -> float { return (v0.w + v0.x) / ((v0.x + v0.w) - (v1.x + v1.w)); },
+					[](Vector4& v) { v.x = -v.w; }) || rs;
+				if (pInput->vertices.size() < 3) return rs;
+				rs = ClipByPlane(pInput, pBuffer, [](const Vector4& v) -> bool {return v.x <= v.w; },
+					[](const Vector4& v0, const Vector4& v1) -> float { return (-v0.w + v0.x) / ((v0.x - v0.w) - (v1.x - v1.w)); },
+					[](Vector4& v) { v.x = v.w; }) || rs;
+				if (pInput->vertices.size() < 3) return rs;
+				rs = ClipByPlane(pInput, pBuffer, [](const Vector4& v) -> bool {return v.y >= -v.w; },
+					[](const Vector4& v0, const Vector4& v1) -> float { return (v0.w + v0.y) / ((v0.y + v0.w) - (v1.y + v1.w)); },
+					[](Vector4& v) { v.y = -v.w; }) || rs;
+				if (pInput->vertices.size() < 3) return rs;
+				rs = ClipByPlane(pInput, pBuffer, [](const Vector4& v) -> bool {return v.y <= v.w; },
+					[](const Vector4& v0, const Vector4& v1) -> float { return (-v0.w + v0.y) / ((v0.y - v0.w) - (v1.y - v1.w)); },
+					[](Vector4& v) { v.y = v.w; }) || rs;
+				if (pInput->vertices.size() < 3) return rs;
+				rs = ClipByPlane(pInput, pBuffer, [=](const Vector4& v) -> bool {return v.z <= v.w; },
+					[](const Vector4& v0, const Vector4& v1) -> float { return (-v0.w + v0.z) / ((v0.z - v0.w) - (v1.z - v1.w)); },
+					[=](Vector4& v) { v.z = v.w; }) || rs;
+				if (pInput->vertices.size() < 3) return rs;
+				rs = ClipByPlane(pInput, pBuffer, [=](const Vector4& v) -> bool {return v.z >= 0.0f; },
+					[](const Vector4& v0, const Vector4& v1) -> float { return v0.z / (v0.z - v1.z); },
+					[=](Vector4& v) { v.z = 0.0f; }) || rs;
+				if (pInput->vertices.size() < 3) return rs;
+				for (int i = 0; i<pInput->vertices.size(); i++)
+				{
+					if (pInput->vertices[i].pos.w <= 0.0f)
+					{
+						pInput->vertices.clear();
+						return true;
+					}
+				}
+				return rs;
 			}
 		};
 	}

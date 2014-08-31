@@ -18,11 +18,12 @@ namespace EDX
 			mColorBuffer[Vector2i(x, mResY - 1 - y)] = c;
 		}
 
-		bool FrameBuffer::UpdateDepth(const float d, const int x, const int y)
+		bool FrameBuffer::ZTest(const float d, const int x, const int y)
 		{
 			float& currDepth = mDepthBuffer[Vector2i(x, mResY - 1 - y)];
 			if (d > currDepth)
 				return false;
+
 			currDepth = d;
 			return true;
 		}

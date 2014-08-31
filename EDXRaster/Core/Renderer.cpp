@@ -41,29 +41,8 @@ namespace EDX
 		{
 			mpFrameBuffer->Clear();
 
-			auto pVertexBuf = mesh.GetVertexBuffer();
-			auto pIndexBuf = mesh.GetIndexBuffer();
-
-			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
-			for (auto i = 0; i < pVertexBuf->GetVertexCount(); i++)
-			{
-				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
-			}
-
-			Clipper::Clip(mProjectedVertexBuf, pIndexBuf);
-
-			for (auto& vertex : mProjectedVertexBuf)
-			{
-				float invW = 1.0f / vertex.projectedPos.w;
-				vertex.projectedPos.x *= invW;
-				vertex.projectedPos.y *= invW;
-				vertex.projectedPos.z *= invW;
-				vertex.projectedPos.w *= invW;
-
-				vertex.projectedPos = Matrix::TransformPoint(vertex.projectedPos, mGlobalRenderStates.mRasterMatrix);
-				vertex.invW = invW;
-			}
-
+			VertexProcessing(mesh.GetVertexBuffer());
+			Clipping(mesh.GetIndexBuffer());
 
 			struct RasterTriangle
 			{
@@ -121,9 +100,9 @@ namespace EDX
 				}
 			};
 
-			for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
+			for (auto i = 0; i < mIndexBuf.GetTriangleCount(); i++)
 			{
-				const uint* pIndex = pIndexBuf->GetIndex(i);
+				const uint* pIndex = mIndexBuf.GetIndex(i);
 				const ProjectedVertex& v0 = mProjectedVertexBuf[pIndex[0]];
 				const ProjectedVertex& v1 = mProjectedVertexBuf[pIndex[1]];
 				const ProjectedVertex& v2 = mProjectedVertexBuf[pIndex[2]];
@@ -145,13 +124,14 @@ namespace EDX
 				{
 					for (vP.x = minX; vP.x <= maxX; vP.x++)
 					{
-						if (tri.Inside(vP * 16 + 8 * Vector2i::UNIT_SCALE))
+						Vector2i rasterPos = vP * 16 + 8 * Vector2i::UNIT_SCALE;
+						if (tri.Inside(rasterPos))
 						{
-							tri.CalcBarycentricCoord(vP.x * 16 + 8, vP.y * 16 + 8);
+							tri.CalcBarycentricCoord(rasterPos.x, rasterPos.y);
 							Fragment frag;
-							frag.SetupAndInterpolate(v0, v1, v2, tri.lambda0, tri.lambda1);
-							if (mpFrameBuffer->UpdateDepth(frag.depth, vP.x, vP.y))
+							if (mpFrameBuffer->ZTest(frag.GetDepth(v0, v1, v2, tri.lambda0, tri.lambda1), vP.x, vP.y))
 							{
+								frag.SetupAndInterpolate(v0, v1, v2, tri.lambda0, tri.lambda1);
 								Color c = mpPixelShader->Shade(frag,
 									Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
 									Vector3(-1, 1, -1));
@@ -162,6 +142,38 @@ namespace EDX
 				}
 
 			}
+		}
+
+		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
+		{
+			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
+			for (auto i = 0; i < pVertexBuf->GetVertexCount(); i++)
+			{
+				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
+			}
+		}
+
+		void Renderer::Clipping(IndexBuffer* pSrcIdxBuf)
+		{
+			mIndexBuf.ResizeBuffer(0);
+			Clipper::Clip(mProjectedVertexBuf, &mIndexBuf, pSrcIdxBuf);
+
+			for (auto& vertex : mProjectedVertexBuf)
+			{
+				float invW = 1.0f / vertex.projectedPos.w;
+				vertex.projectedPos.x *= invW;
+				vertex.projectedPos.y *= invW;
+				vertex.projectedPos.z *= invW;
+				vertex.projectedPos.w *= invW;
+
+				vertex.projectedPos = Matrix::TransformPoint(vertex.projectedPos, mGlobalRenderStates.mRasterMatrix);
+				vertex.invW = invW;
+			}
+		}
+
+		void Renderer::FragmentProcessing()
+		{
+
 		}
 
 		const float* Renderer::GetBackBuffer() const

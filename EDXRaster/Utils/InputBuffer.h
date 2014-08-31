@@ -147,9 +147,7 @@ namespace EDX
 		class IndexBuffer
 		{
 		private:
-			_byte*	mpBuffer;
-			size_t	mBufSize;
-			uint	mTriangleCount;
+			vector<uint>	mBuffer;
 
 		public:
 			~IndexBuffer()
@@ -157,37 +155,40 @@ namespace EDX
 				Release();
 			}
 			
-			void NewBuffer(const uint triCount)
+			void ResizeBuffer(const uint triCount)
 			{
-				mTriangleCount = triCount;
-				mBufSize = triCount * 12;
-
-				mpBuffer = new _byte[mBufSize];
+				mBuffer.resize(3 * triCount);
 			}
-			inline void* GetBuffer() const
+			inline uint* GetBuffer()
 			{
-				return mpBuffer;
+				return mBuffer.data();
 			}
 			inline uint GetTriangleCount() const
 			{
-				return mTriangleCount;
-			}
-			inline int GetStride() const
-			{
-				return 12;
+				return mBuffer.size() / 3;
 			}
 			inline size_t GetBufferSize() const
 			{
-				return mBufSize;
+				return mBuffer.size();
 			}
 			inline const uint* GetIndex(const uint idx) const
 			{
-				assert(idx < mTriangleCount);
-				return (uint*)&mpBuffer[idx * GetStride()];
+				assert(3 * idx < mBuffer.size());
+				return (uint*)&mBuffer[3 * idx];
+			}
+			inline void AppendTriangle(const int idx0, const int idx1, const int idx2)
+			{
+				mBuffer.push_back(idx0);
+				mBuffer.push_back(idx1);
+				mBuffer.push_back(idx2);
+			}
+			inline void CopyFrom(IndexBuffer& other)
+			{
+				mBuffer.resize(other.GetBufferSize());
+				memcpy(mBuffer.data(), other.GetBuffer(), other.GetBufferSize() * sizeof(uint));
 			}
 			void Release()
 			{
-				SafeDeleteArray(mpBuffer);
 			}
 		};
 
@@ -196,8 +197,8 @@ namespace EDX
 			IndexBuffer* ret = nullptr;
 			ret = new IndexBuffer;
 
-			ret->NewBuffer(triCount);
-			memcpy(ret->GetBuffer(), pData, ret->GetBufferSize());
+			ret->ResizeBuffer(triCount);
+			memcpy(ret->GetBuffer(), pData, ret->GetBufferSize() * sizeof(uint));
 
 			return ret;
 		}
