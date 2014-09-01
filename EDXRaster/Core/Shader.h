@@ -98,7 +98,7 @@ namespace EDX
 				const Vector3& lightDir) const = 0;
 		};
 
-		class BlinnPhonePixelShader : public PixelShader
+		class BlinnPhongPixelShader : public PixelShader
 		{
 		public:
 			Color Shade(const Fragment& fragIn,

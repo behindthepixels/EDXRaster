@@ -7,6 +7,9 @@
 #include "../Utils/InputBuffer.h"
 #include "Math/Matrix.h"
 
+#include <ppl.h>
+using namespace concurrency;
+
 namespace EDX
 {
 	namespace RasterRenderer
@@ -25,7 +28,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new BlinnPhonePixelShader;
+			mpPixelShader = new BlinnPhongPixelShader;
 		}
 
 		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
@@ -45,6 +48,7 @@ namespace EDX
 			Clipping(mesh.GetIndexBuffer());
 
 			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
+			//parallel_for(0, (int)mRasterTriangleBuf.size(), [&](int i)
 			{
 				RasterTriangle& tri = mRasterTriangleBuf[i];
 
@@ -54,13 +58,21 @@ namespace EDX
 				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) / 16);
 
 				Vector2i vP;
+				Vector2i rasterPos = 16 * Vector2i(minX, minY) + 8 * Vector2i::UNIT_SCALE;
+				int edgeVal0 = tri.EdgeFunc0(rasterPos);
+				int edgeVal1 = tri.EdgeFunc1(rasterPos);
+				int edgeVal2 = tri.EdgeFunc2(rasterPos);
 				for (vP.y = minY; vP.y <= maxY; vP.y++)
 				{
+					int edgeYBase0 = edgeVal0;
+					int edgeYBase1 = edgeVal1;
+					int edgeYBase2 = edgeVal2;
+
 					for (vP.x = minX; vP.x <= maxX; vP.x++)
 					{
-						Vector2i rasterPos = vP * 16 + 8 * Vector2i::UNIT_SCALE;
-						if (tri.Inside(rasterPos))
+						if ((edgeVal0 | edgeVal1 | edgeVal2) >= 0)
 						{
+							rasterPos = vP * 16 + 8 * Vector2i::UNIT_SCALE;
 							tri.CalcBarycentricCoord(rasterPos.x, rasterPos.y);
 							Fragment frag;
 							if (mpFrameBuffer->ZTest(frag.GetDepth(mProjectedVertexBuf[tri.vId0],
@@ -78,19 +90,26 @@ namespace EDX
 								mpFrameBuffer->SetColor(c, vP.x, vP.y);
 							}
 						}
-					}
-				}
 
+						edgeVal0 += tri.stepB0;
+						edgeVal1 += tri.stepB1;
+						edgeVal2 += tri.stepB2;
+					}
+
+					edgeVal0 = edgeYBase0 + tri.stepC0;
+					edgeVal1 = edgeYBase1 + tri.stepC1;
+					edgeVal2 = edgeYBase2 + tri.stepC2;
+				}
 			}
 		}
 
 		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
 		{
 			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
-			for (auto i = 0; i < pVertexBuf->GetVertexCount(); i++)
+			parallel_for(0, (int)pVertexBuf->GetVertexCount(), [&](int i)
 			{
 				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
-			}
+			});
 		}
 
 		void Renderer::Clipping(IndexBuffer* pIndexBuf)
@@ -98,11 +117,12 @@ namespace EDX
 			mRasterTriangleBuf.clear();
 			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, mGlobalRenderStates.GetRasterMatrix(), mRasterTriangleBuf);
 
-			for (auto& vertex : mProjectedVertexBuf)
+			parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
 			{
+				ProjectedVertex& vertex = mProjectedVertexBuf[i];
 				vertex.invW = 1.0f / vertex.projectedPos.w;
 				vertex.projectedPos.z *= vertex.invW;
-			}
+			});
 		}
 
 		void Renderer::FragmentProcessing()
