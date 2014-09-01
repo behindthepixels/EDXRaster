@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RendererState.h"
+#include "RenderState.h"
 #include "Math/Vector.h"
 #include "Graphics/Color.h"
 
@@ -15,13 +15,18 @@ namespace EDX
 			Vector3 position;
 			Vector3 normal;
 			Vector2 texCoord;
+
+			ProjectedVertex()
+				: invW(0.0f)
+			{
+			}
 		};
 
 		class VertexShader
 		{
 		public:
 			virtual ~VertexShader() {}
-			virtual void Execute(const RendererState& renderState,
+			virtual void Execute(const RenderState& renderState,
 				const Vector3& vPosIn,
 				const Vector3& vNormalIn,
 				const Vector2& vTexIn,
@@ -31,7 +36,7 @@ namespace EDX
 		class DefaultVertexShader : public VertexShader
 		{
 		public:
-			virtual void Execute(const RendererState& renderState,
+			virtual void Execute(const RenderState& renderState,
 				const Vector3& vPosIn,
 				const Vector3& vNormalIn,
 				const Vector2& vTexIn,

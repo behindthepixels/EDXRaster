@@ -6,7 +6,7 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
-		class RendererState
+		class RenderState
 		{
 		public:
 			Matrix mModelViewMatrix;

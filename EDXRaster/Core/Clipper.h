@@ -1,8 +1,6 @@
 #pragma once
 
 #include "EDXPrerequisites.h"
-#include "Shader.h"
-#include "../Utils/InputBuffer.h"
 
 #define CLIP_ALL_PLANES 1
 
@@ -69,11 +67,11 @@ namespace EDX
 			}
 
 		public:
-			static void Clip(vector<ProjectedVertex>& verticesIn, IndexBuffer* pIndexBufOut, const IndexBuffer* pIndexBufSrc)
+			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const Matrix& rasterMatrix, vector<RasterTriangle>& trianglesBuf)
 			{
-				for (auto i = 0; i < pIndexBufSrc->GetTriangleCount(); i++)
+				for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
 				{
-					const uint* pIndex = pIndexBufSrc->GetIndex(i);
+					const uint* pIndex = pIndexBuf->GetIndex(i);
 					int idx0 = pIndex[0], idx1 = pIndex[1], idx2 = pIndex[2];
 					const Vector4& v0 = verticesIn[idx0].projectedPos;
 					const Vector4& v1 = verticesIn[idx1].projectedPos;
@@ -134,14 +132,32 @@ namespace EDX
 							// Simple triangulation
 							for (int k = 2; k < pCurrPoly->vertices.size(); k++)
 							{
-								pIndexBufOut->AppendTriangle(clipVertIds[0], clipVertIds[k - 1], clipVertIds[k]);
+								uint idx[3] = { clipVertIds[0], clipVertIds[k - 1], clipVertIds[k] };
+
+								RasterTriangle tri;
+								if (tri.Setup(verticesIn[clipVertIds[0]].projectedPos.HomogeneousProject(),
+									verticesIn[clipVertIds[k - 1]].projectedPos.HomogeneousProject(),
+									verticesIn[clipVertIds[k]].projectedPos.HomogeneousProject(),
+									idx,
+									rasterMatrix))
+								{
+									trianglesBuf.push_back(tri);
+								}
 							}
 						}
 
 						continue;
 					}
 
-					pIndexBufOut->AppendTriangle(idx0, idx1, idx2);
+					RasterTriangle tri;
+					if (tri.Setup(verticesIn[idx0].projectedPos.HomogeneousProject(),
+						verticesIn[idx1].projectedPos.HomogeneousProject(),
+						verticesIn[idx2].projectedPos.HomogeneousProject(),
+						pIndex,
+						rasterMatrix))
+					{
+						trianglesBuf.push_back(tri);
+					}
 				}
 			}
 

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "RendererState.h"
+#include "RenderState.h"
 #include "Shader.h"
+#include "RasterTriangle.h"
 #include "../Utils/InputBuffer.h"
 #include "Memory/RefPtr.h"
 #include "EDXPrerequisites.h"
@@ -13,14 +14,14 @@ namespace EDX
 		class Renderer
 		{
 		private:
-			RendererState mGlobalRenderStates;
+			RenderState mGlobalRenderStates;
 			RefPtr<class FrameBuffer> mpFrameBuffer;
 			RefPtr<class VertexShader> mpVertexShader;
 			RefPtr<class PixelShader> mpPixelShader;
 			RefPtr<class Scene> mpScene;
 
 			vector<ProjectedVertex> mProjectedVertexBuf;
-			IndexBuffer mIndexBuf;
+			vector<RasterTriangle> mRasterTriangleBuf;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
@@ -31,7 +32,7 @@ namespace EDX
 
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
-			void Clipping(IndexBuffer* pSrcIdxBuf);
+			void Clipping(IndexBuffer* pIndexBuf);
 			void FragmentProcessing();
 		};
 

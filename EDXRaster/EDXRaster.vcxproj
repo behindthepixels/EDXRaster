@@ -27,8 +27,9 @@
   <ItemGroup>
     <ClInclude Include="Core\Clipper.h" />
     <ClInclude Include="Core\FrameBuffer.h" />
+    <ClInclude Include="Core\RasterTriangle.h" />
     <ClInclude Include="Core\Renderer.h" />
-    <ClInclude Include="Core\RendererState.h" />
+    <ClInclude Include="Core\RenderState.h" />
     <ClInclude Include="Core\Scene.h" />
     <ClInclude Include="Core\Shader.h" />
     <ClInclude Include="Utils\InputBuffer.h" />
