@@ -17,11 +17,12 @@ namespace EDX
 			RenderState mGlobalRenderStates;
 			RefPtr<class FrameBuffer> mpFrameBuffer;
 			RefPtr<class VertexShader> mpVertexShader;
-			RefPtr<class PixelShader> mpPixelShader;
+			RefPtr<class QuadPixelShader> mpPixelShader;
 			RefPtr<class Scene> mpScene;
 
 			vector<ProjectedVertex> mProjectedVertexBuf;
 			vector<RasterTriangle> mRasterTriangleBuf;
+			vector<QuadFragment> mFragmentBuf;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);

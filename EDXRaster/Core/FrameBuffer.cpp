@@ -28,6 +28,30 @@ namespace EDX
 			return true;
 		}
 
+		BoolSSE FrameBuffer::ZTestQuad(const FloatSSE& d, const int x, const int y, const BoolSSE& mask)
+		{
+			float& currDepth00 = mDepthBuffer[Vector2i(x, mResY - 1 - y)];
+			float& currDepth01 = mDepthBuffer[Vector2i(x + 1, mResY - 1 - y)];
+			float& currDepth10 = mDepthBuffer[Vector2i(x, mResY - 1 - y - 1)];
+			float& currDepth11 = mDepthBuffer[Vector2i(x + 1, mResY - 1 - y - 1)];
+
+			bool lt00 = d[0] <= currDepth00;
+			bool lt01 = d[1] <= currDepth01;
+			bool lt10 = d[2] <= currDepth10;
+			bool lt11 = d[3] <= currDepth11;
+
+			if (lt00 && mask[0] != 0)
+				currDepth00 = d[0];
+			if (lt01 && mask[1] != 0)
+				currDepth01 = d[1];
+			if (lt10 && mask[2] != 0)
+				currDepth10 = d[2];
+			if (lt11 && mask[3] != 0)
+				currDepth11 = d[3];
+
+			return BoolSSE(lt00, lt01, lt10, lt11);
+		}
+
 		void FrameBuffer::Clear(const bool clearColor, const bool clearDepth)
 		{
 			if (clearColor)

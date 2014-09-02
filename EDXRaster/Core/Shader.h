@@ -3,6 +3,7 @@
 #include "RenderState.h"
 #include "Math/Vector.h"
 #include "Graphics/Color.h"
+#include "SIMD/SSE.h"
 
 namespace EDX
 {
@@ -56,7 +57,7 @@ namespace EDX
 			Vector2 texCoord;
 			float depth;
 
-			void SetupAndInterpolate(const ProjectedVertex& v0,
+			void Interpolate(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
 				const ProjectedVertex& v2,
 				float& b0,
@@ -83,6 +84,53 @@ namespace EDX
 				float b1)
 			{
 				float b2 = 1.0f - b0 - b1;
+				depth = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
+
+				return depth;
+			}
+		};
+
+		struct QuadFragment
+		{
+			Vec3f_SSE position;
+			Vec3f_SSE normal;
+			Vec2f_SSE texCoord;
+			FloatSSE depth;
+
+			int vId0, vId1, vId2;
+			FloatSSE lambda0, lambda1;
+			Vector2i pixelCoord;
+			BoolSSE insideMask;
+
+			void Interpolate(const ProjectedVertex& v0,
+				const ProjectedVertex& v1,
+				const ProjectedVertex& v2,
+				FloatSSE& b0,
+				FloatSSE& b1)
+			{
+				const auto One = FloatSSE(Math::EDX_ONE);
+				FloatSSE b2 = One - b0 - b1;
+				b0 *= v0.invW;
+				b1 *= v1.invW;
+				b2 *= v2.invW;
+				FloatSSE invB = One / (b0 + b1 + b2);
+				b0 *= invB;
+				b1 *= invB;
+				b2 = One - b0 - b1;
+
+				position = b0 * Vec3f_SSE(v0.position.x, v0.position.y, v0.position.z) + b1 * Vec3f_SSE(v1.position.x, v1.position.y, v1.position.z) + b2 * Vec3f_SSE(v2.position.x, v2.position.y, v2.position.z);
+				normal = b0 * Vec3f_SSE(v0.normal.x, v0.normal.y, v0.normal.z) + b1 * Vec3f_SSE(v1.normal.x, v1.normal.y, v1.normal.z) + b2 * Vec3f_SSE(v2.normal.x, v2.normal.y, v2.normal.z);
+				texCoord = b0 * Vec2f_SSE(v0.texCoord.x, v0.texCoord.y) + b1 * Vec2f_SSE(v1.texCoord.x, v1.texCoord.y) + b2 * Vec2f_SSE(v2.texCoord.x, v2.texCoord.y);
+			}
+
+			FloatSSE GetDepth(const ProjectedVertex& v0,
+				const ProjectedVertex& v1,
+				const ProjectedVertex& v2,
+				FloatSSE b0,
+				FloatSSE b1)
+			{
+				const auto One = FloatSSE(Math::EDX_ONE);
+				FloatSSE b2 = One - b0 - b1;
 				depth = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
 
 				return depth;
@@ -116,6 +164,70 @@ namespace EDX
 				Color specular = Color::WHITE * specularAmount;
 
 				return diffuse + specular;
+			}
+		};
+
+		class QuadPixelShader
+		{
+		public:
+			virtual ~QuadPixelShader() {}
+			virtual Vec3f_SSE Shade(const QuadFragment& fragIn,
+				const Vector3& eyePos,
+				const Vector3& lightDir) const = 0;
+		};
+
+		class QuadBlinnPhongPixelShader : public QuadPixelShader
+		{
+		public:
+			Vec3f_SSE Shade(const QuadFragment& fragIn,
+				const Vector3& eyePos,
+				const Vector3& lightDir) const
+			{
+				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
+				Vec3f_SSE normal = fragIn.normal * w;
+				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
+
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
+				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
+
+				FloatSSE diffuse = (diffuseAmount + 0.1f) * 2 * Math::EDX_INV_PI;
+
+				Vec3f_SSE eyeDir = Vec3f_SSE(eyePos) - fragIn.position;
+				w = SSE::Rsqrt(Math::Dot(eyeDir, eyeDir));
+				eyeDir *= w;
+
+				Vec3f_SSE halfVec = vecLightDir + eyeDir;
+				w = SSE::Rsqrt(Math::Dot(halfVec, halfVec));
+				halfVec *= w;
+
+				FloatSSE specularAmount = Math::Dot(normal, halfVec);
+				specularAmount = FloatSSE(Math::Pow(specularAmount[0], max(200.0f, 0.0001f)) * 2,
+					Math::Pow(specularAmount[1], max(200.0f, 0.0001f)) * 2,
+					Math::Pow(specularAmount[2], max(200.0f, 0.0001f)) * 2,
+					Math::Pow(specularAmount[3], max(200.0f, 0.0001f)) * 2);
+
+				return diffuse + specularAmount;
+			}
+		};
+
+		class QuadLambertianPixelShader : public QuadPixelShader
+		{
+		public:
+			Vec3f_SSE Shade(const QuadFragment& fragIn,
+				const Vector3& eyePos,
+				const Vector3& lightDir) const
+			{
+				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
+				Vec3f_SSE normal = fragIn.normal * w;
+				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
+
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
+				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
+				FloatSSE diffuse = (diffuseAmount + 0.22f) * 2 * Math::EDX_INV_PI;
+
+				return diffuse;
 			}
 		};
 	}

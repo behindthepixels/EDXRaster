@@ -117,12 +117,12 @@ namespace EDX
 
 				invDet = tri.invDet;
 
-				stepB0 = tri.stepB0;
-				stepC0 = tri.stepC0;
-				stepB1 = tri.stepB1;
-				stepC1 = tri.stepC1;
-				stepB2 = tri.stepB2;
-				stepC2 = tri.stepC2;
+				stepB0 = 2 * tri.stepB0;
+				stepC0 = 2 * tri.stepC0;
+				stepB1 = 2 * tri.stepB1;
+				stepC1 = 2 * tri.stepC1;
+				stepB2 = 2 * tri.stepB2;
+				stepC2 = 2 * tri.stepC2;
 
 				vId0 = tri.vId0;
 				vId1 = tri.vId1;

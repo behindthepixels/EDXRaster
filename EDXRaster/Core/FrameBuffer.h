@@ -2,6 +2,7 @@
 
 #include "Memory/Array.h"
 #include "Graphics/Color.h"
+#include "SIMD/SSE.h"
 
 namespace EDX
 {
@@ -24,8 +25,15 @@ namespace EDX
 			void Init(uint iWidth, uint iHeight);
 			void SetColor(const Color& c, const int x, const int y);
 			bool ZTest(const float d, const int x, const int y);
-			uint GetWidth() const { return mResX; }
-			uint GetHeight() const { return mResY; }
+			BoolSSE ZTestQuad(const FloatSSE& d, const int x, const int y, const BoolSSE& mask);
+			uint GetWidth() const
+			{
+				return mResX;
+			}
+			uint GetHeight() const
+			{
+				return mResY;
+			}
 			const float* GetColorBuffer() const
 			{
 				return (float*)mColorBuffer.Data();

@@ -69,6 +69,7 @@ namespace EDX
 		public:
 			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const Matrix& rasterMatrix, vector<RasterTriangle>& trianglesBuf)
 			{
+				//parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
 				for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
 				{
 					const uint* pIndex = pIndexBuf->GetIndex(i);
