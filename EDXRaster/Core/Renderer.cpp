@@ -47,7 +47,7 @@ namespace EDX
 			VertexProcessing(mesh.GetVertexBuffer());
 			Clipping(mesh.GetIndexBuffer());
 
-			for (auto i = 0; i < 1; i++)
+			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
 			//parallel_for(0, (int)mRasterTriangleBuf.size(), [&](int i)
 			{
 				RasterTriangle& tri = mRasterTriangleBuf[i];
