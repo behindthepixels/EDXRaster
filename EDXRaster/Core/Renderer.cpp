@@ -47,7 +47,7 @@ namespace EDX
 			VertexProcessing(mesh.GetVertexBuffer());
 			Clipping(mesh.GetIndexBuffer());
 
-			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
+			for (auto i = 0; i < 1; i++)
 			//parallel_for(0, (int)mRasterTriangleBuf.size(), [&](int i)
 			{
 				RasterTriangle& tri = mRasterTriangleBuf[i];
@@ -57,48 +57,80 @@ namespace EDX
 				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) / 16);
 				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) / 16);
 
-				Vector2i vP;
-				Vector2i rasterPos = 16 * Vector2i(minX, minY) + 8 * Vector2i::UNIT_SCALE;
-				int edgeVal0 = tri.EdgeFunc0(rasterPos);
-				int edgeVal1 = tri.EdgeFunc1(rasterPos);
-				int edgeVal2 = tri.EdgeFunc2(rasterPos);
-				for (vP.y = minY; vP.y <= maxY; vP.y++)
-				{
-					int edgeYBase0 = edgeVal0;
-					int edgeYBase1 = edgeVal1;
-					int edgeYBase2 = edgeVal2;
+				TriangleSIMD triSIMD;
+				triSIMD.Load(tri);
 
-					for (vP.x = minX; vP.x <= maxX; vP.x++)
+				Vector2i coord = 16 * Vector2i(minX, minY);
+				Vec2i_SSE rasterPos = Vec2i_SSE(IntSSE(coord.x + 8, coord.x + 24, coord.x + 8, coord.x + 24), IntSSE(coord.y + 8, coord.y + 8, coord.y + 24, coord.y + 24));
+				IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterPos);
+				IntSSE edgeVal1 = triSIMD.EdgeFunc1(rasterPos);
+				IntSSE edgeVal2 = triSIMD.EdgeFunc2(rasterPos);
+
+				Vector2i vP;
+				for (vP.y = minY; vP.y <= maxY; vP.y += 2)
+				{
+					IntSSE edgeYBase0 = edgeVal0;
+					IntSSE edgeYBase1 = edgeVal1;
+					IntSSE edgeYBase2 = edgeVal2;
+
+					vP.y = Math::Min(vP.y, maxY);
+
+					for (vP.x = minX; vP.x <= maxX; vP.x += 2)
 					{
-						if ((edgeVal0 | edgeVal1 | edgeVal2) >= 0)
+						vP.x = Math::Min(vP.x, maxX);
+
+						BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
+						if (SSE::Any(inside))
 						{
-							rasterPos = vP * 16 + 8 * Vector2i::UNIT_SCALE;
-							tri.CalcBarycentricCoord(rasterPos.x, rasterPos.y);
-							Fragment frag;
-							if (mpFrameBuffer->ZTest(frag.GetDepth(mProjectedVertexBuf[tri.vId0],
-								mProjectedVertexBuf[tri.vId1],
-								mProjectedVertexBuf[tri.vId2],
-								tri.lambda0, tri.lambda1), vP.x, vP.y))
+							coord = 16 * Vector2i(vP.x, vP.y);
+							rasterPos = Vec2i_SSE(IntSSE(coord.x + 8, coord.x + 24, coord.x + 8, coord.x + 24), IntSSE(coord.y + 8, coord.y + 8, coord.y + 24, coord.y + 24));
+							triSIMD.CalcBarycentricCoord(rasterPos.x, rasterPos.y);
+
+							auto FragmentProcess = [&](int i)
 							{
-								frag.SetupAndInterpolate(mProjectedVertexBuf[tri.vId0],
-									mProjectedVertexBuf[tri.vId1],
-									mProjectedVertexBuf[tri.vId2],
-									tri.lambda0, tri.lambda1);
-								Color c = mpPixelShader->Shade(frag,
-									Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
-									Vector3(-1, 1, -1));
-								mpFrameBuffer->SetColor(c, vP.x, vP.y);
+								Fragment frag;
+								if (mpFrameBuffer->ZTest(frag.GetDepth(mProjectedVertexBuf[triSIMD.vId0],
+									mProjectedVertexBuf[triSIMD.vId1],
+									mProjectedVertexBuf[triSIMD.vId2],
+									triSIMD.lambda0[i], triSIMD.lambda1[i]), vP.x + i % 2, vP.y + i / 2))
+								{
+									frag.SetupAndInterpolate(mProjectedVertexBuf[triSIMD.vId0],
+										mProjectedVertexBuf[triSIMD.vId1],
+										mProjectedVertexBuf[triSIMD.vId2],
+										triSIMD.lambda0[i], triSIMD.lambda1[i]);
+									Color c = mpPixelShader->Shade(frag,
+										Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
+										Vector3(-1, 1, -1));
+									mpFrameBuffer->SetColor(Color(triSIMD.lambda0[i], triSIMD.lambda1[i], 1.0f - triSIMD.lambda0[i] - triSIMD.lambda1[i]), vP.x + i % 2, vP.y + i / 2);
+								}
+							};
+
+							if (inside[0] != 0)
+							{
+								FragmentProcess(0);
+							}
+							if (inside[1] != 0)
+							{
+								FragmentProcess(1);
+							}
+							if (inside[2] != 0)
+							{
+								FragmentProcess(2);
+							}
+							if (inside[3] != 0)
+							{
+								FragmentProcess(3);
 							}
 						}
 
-						edgeVal0 += tri.stepB0;
-						edgeVal1 += tri.stepB1;
-						edgeVal2 += tri.stepB2;
+						edgeVal0 += triSIMD.stepB0;
+						edgeVal1 += triSIMD.stepB1;
+						edgeVal2 += triSIMD.stepB2;
 					}
 
-					edgeVal0 = edgeYBase0 + tri.stepC0;
-					edgeVal1 = edgeYBase1 + tri.stepC1;
-					edgeVal2 = edgeYBase2 + tri.stepC2;
+					edgeVal0 = edgeYBase0 + triSIMD.stepC0;
+					edgeVal1 = edgeYBase1 + triSIMD.stepC1;
+					edgeVal2 = edgeYBase2 + triSIMD.stepC2;
 				}
 			}
 		}

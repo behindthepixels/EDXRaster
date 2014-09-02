@@ -89,5 +89,69 @@ namespace EDX
 				lambda1 = (B2 * (x - v2.x) + C2 * (y - v2.y)) * invDet;
 			}
 		};
+
+		struct TriangleSIMD
+		{
+			Vec2i_SSE v0, v1, v2;
+			IntSSE B0, C0, B1, C1, B2, C2;
+
+			IntSSE stepB0, stepC0, stepB1, stepC1, stepB2, stepC2;
+
+			FloatSSE invDet;
+			uint vId0, vId1, vId2;
+
+			FloatSSE lambda0, lambda1;
+
+			void Load(const RasterTriangle& tri)
+			{
+				v0 = tri.v0;
+				v1 = tri.v1;
+				v2 = tri.v2;
+
+				B0 = tri.B0;
+				C0 = tri.C0;
+				B1 = tri.B1;
+				C1 = tri.C1;
+				B2 = tri.B2;
+				C2 = tri.C2;
+
+				invDet = tri.invDet;
+
+				stepB0 = tri.stepB0;
+				stepC0 = tri.stepC0;
+				stepB1 = tri.stepB1;
+				stepC1 = tri.stepC1;
+				stepB2 = tri.stepB2;
+				stepC2 = tri.stepC2;
+
+				vId0 = tri.vId0;
+				vId1 = tri.vId1;
+				vId2 = tri.vId2;
+			}
+
+			__forceinline IntSSE TopLeftEdge(const Vec2i_SSE& v1, const Vec2i_SSE& v2) const
+			{
+				return ((v2.y > v1.y) | ((v1.y == v2.y) & (v1.x > v2.x)));
+			}
+
+			__forceinline IntSSE EdgeFunc0(const Vec2i_SSE& p) const
+			{
+				return B0 * (p.x - v0.x) + C0 * (p.y - v0.y) + TopLeftEdge(v0, v1);
+			}
+			__forceinline IntSSE EdgeFunc1(const Vec2i_SSE& p) const
+			{
+				return B1 * (p.x - v1.x) + C1 * (p.y - v1.y) + TopLeftEdge(v1, v2);
+			}
+			__forceinline IntSSE EdgeFunc2(const Vec2i_SSE& p) const
+			{
+				return B2 * (p.x - v2.x) + C2 * (p.y - v2.y) + TopLeftEdge(v2, v0);
+			}
+
+			__forceinline void CalcBarycentricCoord(const IntSSE& x, const IntSSE& y)
+			{
+				lambda0 = FloatSSE((B1 * (x - v2.x) + C1 * (y - v2.y))) * invDet;
+				lambda1 = FloatSSE((B2 * (x - v2.x) + C2 * (y - v2.y))) * invDet;
+			}
+		};
 	}
 }
