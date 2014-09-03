@@ -4,6 +4,7 @@
 #include "Shader.h"
 #include "RasterTriangle.h"
 #include "../Utils/InputBuffer.h"
+#include "Windows/Thread.h"
 #include "Memory/RefPtr.h"
 #include "EDXPrerequisites.h"
 
@@ -15,8 +16,10 @@ namespace EDX
 		{
 			static const int SIZE_LOG_2 = 5;
 			static const int SIZE = 1 << SIZE_LOG_2;
+
 			Vector2i minCoord, maxCoord;
 			vector<uint> triangleIds;
+			vector<QuadFragment> fragmentBuf;
 
 			Tile(const Vector2i& min, const Vector2i& max)
 				: minCoord(min), maxCoord(max)

@@ -102,7 +102,7 @@ namespace EDX
 
 			FloatSSE lambda0, lambda1;
 
-			void Load(const RasterTriangle& tri)
+			__forceinline void LoadCoords(const RasterTriangle& tri)
 			{
 				v0 = tri.v0;
 				v1 = tri.v1;
@@ -114,6 +114,11 @@ namespace EDX
 				C1 = tri.C1;
 				B2 = tri.B2;
 				C2 = tri.C2;
+			}
+
+			void Load(const RasterTriangle& tri)
+			{
+				LoadCoords(tri);
 
 				invDet = tri.invDet;
 
@@ -145,6 +150,15 @@ namespace EDX
 			__forceinline IntSSE EdgeFunc2(const Vec2i_SSE& p) const
 			{
 				return B2 * (p.x - v2.x) + C2 * (p.y - v2.y) + TopLeftEdge(v2, v0);
+			}
+
+			__forceinline BoolSSE Inside(const Vec2i_SSE& p) const
+			{
+				return (EdgeFunc0(p) | EdgeFunc1(p) | EdgeFunc2(p)) >= IntSSE(Math::EDX_ZERO);
+			}
+			__forceinline bool TrivialReject(const Vec2i_SSE& p) const
+			{
+				return SSE::Any((EdgeFunc0(p) & EdgeFunc1(p) & EdgeFunc2(p)) < IntSSE(Math::EDX_ZERO));
 			}
 
 			__forceinline void CalcBarycentricCoord(const IntSSE& x, const IntSSE& y)

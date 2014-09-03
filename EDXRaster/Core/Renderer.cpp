@@ -28,18 +28,18 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadBlinnPhongPixelShader;
+			mpPixelShader = new QuadLambertianPixelShader;
 
-			mTileDim.x = iScreenWidth >> Tile::SIZE_LOG_2;
-			mTileDim.y = iScreenHeight >> Tile::SIZE_LOG_2;
+			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
+			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
 			{
 				for (auto j = 0; j < iScreenWidth; j += Tile::SIZE)
 				{
-					i = Math::Min(i, iScreenHeight);
-					j = Math::Min(j, iScreenWidth);
+					auto maxX = Math::Min(j + Tile::SIZE, iScreenWidth);
+					auto maxY = Math::Min(i + Tile::SIZE, iScreenHeight);
 
-					mTiles.push_back(Tile(Vector2i(i, j), Vector2i(i + Tile::SIZE, j + Tile::SIZE)));
+					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY)));
 				}
 			}
 		}
@@ -88,10 +88,10 @@ namespace EDX
 		void Renderer::TiledRasterization()
 		{
 			// Binning triangles
-			mFragmentBuf.clear();
 			for (auto i = 0; i < mTiles.size(); i++)
 			{
 				mTiles[i].triangleIds.clear();
+				mTiles[i].fragmentBuf.clear();
 			}
 
 			const int Shift = Tile::SIZE_LOG_2 + 4;
@@ -100,30 +100,53 @@ namespace EDX
 				const RasterTriangle& tri = mRasterTriangleBuf[i];
 
 				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> Shift);
-				int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
+				int maxX = Math::Min(mTileDim.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
 				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> Shift);
-				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> Shift);
+				int maxY = Math::Min(mTileDim.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> Shift);
 
-				for (auto y = minY; y <= maxY; y++)
+				if (maxX - minX <= 2 && maxY - minY <= 2)
 				{
-					for (auto x = minX; x <= maxX; x++)
+					for (auto y = minY; y <= maxY; y++)
 					{
-						mTiles[y * mTileDim.x + x].triangleIds.push_back(i);
+						for (auto x = minX; x <= maxX; x++)
+						{
+							mTiles[y * mTileDim.x + x].triangleIds.push_back(i);
+						}
+					}
+				}
+				else
+				{
+					for (auto y = minY; y <= maxY; y++)
+					{
+						IntSSE rasY = IntSSE(y << Shift, y << Shift, (y + 1) << Shift, (y + 1) << Shift);
+						for (auto x = minX; x <= maxX; x++)
+						{
+							IntSSE rasX = IntSSE(x << Shift, (x + 1) << Shift, x << Shift, (x + 1) << Shift);
+							Vec2i_SSE p = Vec2i_SSE(rasX, rasY);
+
+							TriangleSIMD triSIMD;
+							triSIMD.LoadCoords(tri);
+							if (!triSIMD.TrivialReject(p))
+							{
+								mTiles[y * mTileDim.x + x].triangleIds.push_back(i);
+							}
+						}
 					}
 				}
 			}
 
-			for (auto i = 0; i < mTiles.size(); i++)
+			//for (auto i = 0; i < mTiles.size(); i++)
+			parallel_for(0, (int)mTiles.size(), [&](int i)
 			{
-				const Tile& tile = mTiles[i];
+				Tile& tile = mTiles[i];
 				for (auto j = 0; j < tile.triangleIds.size(); j++)
 				{
 					RasterTriangle& tri = mRasterTriangleBuf[tile.triangleIds[j]];
 
-					int minX = Math::Max(tile.minCoord.x, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) / 16);
-					int maxX = Math::Min(tile.maxCoord.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) / 16);
-					int minY = Math::Max(tile.minCoord.y, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) / 16);
-					int maxY = Math::Min(tile.maxCoord.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) / 16);
+					int minX = Math::Max(tile.minCoord.x, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
+					int maxX = Math::Min(tile.maxCoord.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
+					int minY = Math::Max(tile.minCoord.y, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
+					int maxY = Math::Min(tile.maxCoord.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> 4);
 					minX -= minX % 2;
 					minY -= minY % 2;
 
@@ -168,7 +191,7 @@ namespace EDX
 									frag.pixelCoord = pixelCrd;
 									frag.insideMask = inside;
 
-									mFragmentBuf.push_back(frag);
+									tile.fragmentBuf.push_back(frag);
 								}
 							}
 
@@ -182,6 +205,12 @@ namespace EDX
 						edgeVal2 = edgeYBase2 + triSIMD.stepC2;
 					}
 				}
+			});
+
+			mFragmentBuf.clear();
+			for (auto i = 0; i < mTiles.size(); i++)
+			{
+				mFragmentBuf.insert(mFragmentBuf.end(), mTiles[i].fragmentBuf.begin(), mTiles[i].fragmentBuf.end());
 			}
 		}
 
@@ -192,10 +221,10 @@ namespace EDX
 			{
 				RasterTriangle& tri = mRasterTriangleBuf[i];
 
-				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) / 16);
-				int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) / 16);
-				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) / 16);
-				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) / 16);
+				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
+				int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
+				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
+				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> 4);
 				minX -= minX % 2;
 				minY -= minY % 2;
 
