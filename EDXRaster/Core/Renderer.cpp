@@ -28,7 +28,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadLambertianPixelShader;
+			mpPixelShader = new QuadBlinnPhongPixelShader;
 		}
 
 		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
@@ -49,7 +49,6 @@ namespace EDX
 
 			mFragmentBuf.clear();
 			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
-			//parallel_for(0, (int)mRasterTriangleBuf.size(), [&](int i)
 			{
 				RasterTriangle& tri = mRasterTriangleBuf[i];
 

@@ -191,7 +191,7 @@ namespace EDX
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
 
-				FloatSSE diffuse = (diffuseAmount + 0.1f) * 2 * Math::EDX_INV_PI;
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
 				Vec3f_SSE eyeDir = Vec3f_SSE(eyePos) - fragIn.position;
 				w = SSE::Rsqrt(Math::Dot(eyeDir, eyeDir));
