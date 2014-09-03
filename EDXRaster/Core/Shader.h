@@ -126,8 +126,8 @@ namespace EDX
 			FloatSSE GetDepth(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
 				const ProjectedVertex& v2,
-				FloatSSE b0,
-				FloatSSE b1)
+				const FloatSSE& b0,
+				const FloatSSE& b1)
 			{
 				const auto One = FloatSSE(Math::EDX_ONE);
 				FloatSSE b2 = One - b0 - b1;
@@ -225,7 +225,7 @@ namespace EDX
 				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
-				FloatSSE diffuse = (diffuseAmount + 0.22f) * 2 * Math::EDX_INV_PI;
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
 				return diffuse;
 			}

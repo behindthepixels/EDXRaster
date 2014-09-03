@@ -29,6 +29,19 @@ namespace EDX
 
 			mpVertexShader = new DefaultVertexShader;
 			mpPixelShader = new QuadBlinnPhongPixelShader;
+
+			mTileDim.x = iScreenWidth >> Tile::SIZE_LOG_2;
+			mTileDim.y = iScreenHeight >> Tile::SIZE_LOG_2;
+			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
+			{
+				for (auto j = 0; j < iScreenWidth; j += Tile::SIZE)
+				{
+					i = Math::Min(i, iScreenHeight);
+					j = Math::Min(j, iScreenWidth);
+
+					mTiles.push_back(Tile(Vector2i(i, j), Vector2i(i + Tile::SIZE, j + Tile::SIZE)));
+				}
+			}
 		}
 
 		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
@@ -46,7 +59,134 @@ namespace EDX
 
 			VertexProcessing(mesh.GetVertexBuffer());
 			Clipping(mesh.GetIndexBuffer());
+			TiledRasterization();
+			FragmentProcessing();
+		}
 
+		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
+		{
+			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
+			parallel_for(0, (int)pVertexBuf->GetVertexCount(), [&](int i)
+			{
+				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
+			});
+		}
+
+		void Renderer::Clipping(IndexBuffer* pIndexBuf)
+		{
+			mRasterTriangleBuf.clear();
+			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, mGlobalRenderStates.GetRasterMatrix(), mRasterTriangleBuf);
+
+			parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
+			{
+				ProjectedVertex& vertex = mProjectedVertexBuf[i];
+				vertex.invW = 1.0f / vertex.projectedPos.w;
+				vertex.projectedPos.z *= vertex.invW;
+			});
+		}
+
+		void Renderer::TiledRasterization()
+		{
+			// Binning triangles
+			mFragmentBuf.clear();
+			for (auto i = 0; i < mTiles.size(); i++)
+			{
+				mTiles[i].triangleIds.clear();
+			}
+
+			const int Shift = Tile::SIZE_LOG_2 + 4;
+			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
+			{
+				const RasterTriangle& tri = mRasterTriangleBuf[i];
+
+				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> Shift);
+				int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
+				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> Shift);
+				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> Shift);
+
+				for (auto y = minY; y <= maxY; y++)
+				{
+					for (auto x = minX; x <= maxX; x++)
+					{
+						mTiles[y * mTileDim.x + x].triangleIds.push_back(i);
+					}
+				}
+			}
+
+			for (auto i = 0; i < mTiles.size(); i++)
+			{
+				const Tile& tile = mTiles[i];
+				for (auto j = 0; j < tile.triangleIds.size(); j++)
+				{
+					RasterTriangle& tri = mRasterTriangleBuf[tile.triangleIds[j]];
+
+					int minX = Math::Max(tile.minCoord.x, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) / 16);
+					int maxX = Math::Min(tile.maxCoord.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) / 16);
+					int minY = Math::Max(tile.minCoord.y, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) / 16);
+					int maxY = Math::Min(tile.maxCoord.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) / 16);
+					minX -= minX % 2;
+					minY -= minY % 2;
+
+					TriangleSIMD triSIMD;
+					triSIMD.Load(tri);
+
+					Vector2i sampleCoord = Vector2i(minX << 4, minY << 4);
+					Vec2i_SSE rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
+					IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterSamplePos);
+					IntSSE edgeVal1 = triSIMD.EdgeFunc1(rasterSamplePos);
+					IntSSE edgeVal2 = triSIMD.EdgeFunc2(rasterSamplePos);
+
+					Vector2i pixelCrd;
+					for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+					{
+						IntSSE edgeYBase0 = edgeVal0;
+						IntSSE edgeYBase1 = edgeVal1;
+						IntSSE edgeYBase2 = edgeVal2;
+
+						for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+						{
+							BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
+							if (SSE::Any(inside))
+							{
+								sampleCoord = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
+								rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
+								triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
+
+								const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
+								const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
+								const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+
+								QuadFragment frag;
+								BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, inside);
+								if (SSE::Any(zTest))
+								{
+									frag.vId0 = triSIMD.vId0;
+									frag.vId1 = triSIMD.vId1;
+									frag.vId2 = triSIMD.vId2;
+									frag.lambda0 = triSIMD.lambda0;
+									frag.lambda1 = triSIMD.lambda1;
+									frag.pixelCoord = pixelCrd;
+									frag.insideMask = inside;
+
+									mFragmentBuf.push_back(frag);
+								}
+							}
+
+							edgeVal0 += triSIMD.stepB0;
+							edgeVal1 += triSIMD.stepB1;
+							edgeVal2 += triSIMD.stepB2;
+						}
+
+						edgeVal0 = edgeYBase0 + triSIMD.stepC0;
+						edgeVal1 = edgeYBase1 + triSIMD.stepC1;
+						edgeVal2 = edgeYBase2 + triSIMD.stepC2;
+					}
+				}
+			}
+		}
+
+		void Renderer::Rasterization()
+		{
 			mFragmentBuf.clear();
 			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
 			{
@@ -62,7 +202,7 @@ namespace EDX
 				TriangleSIMD triSIMD;
 				triSIMD.Load(tri);
 
-				Vector2i sampleCoord = 16 * Vector2i(minX, minY);
+				Vector2i sampleCoord = Vector2i(minX << 4, minY << 4);
 				Vec2i_SSE rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
 				IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterSamplePos);
 				IntSSE edgeVal1 = triSIMD.EdgeFunc1(rasterSamplePos);
@@ -80,7 +220,7 @@ namespace EDX
 						BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
 						if (SSE::Any(inside))
 						{
-							sampleCoord = 16 * Vector2i(pixelCrd.x, pixelCrd.y);
+							sampleCoord = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
 							rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
 							triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
 
@@ -114,30 +254,6 @@ namespace EDX
 					edgeVal2 = edgeYBase2 + triSIMD.stepC2;
 				}
 			}
-
-			FragmentProcessing();
-		}
-
-		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
-		{
-			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
-			parallel_for(0, (int)pVertexBuf->GetVertexCount(), [&](int i)
-			{
-				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
-			});
-		}
-
-		void Renderer::Clipping(IndexBuffer* pIndexBuf)
-		{
-			mRasterTriangleBuf.clear();
-			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, mGlobalRenderStates.GetRasterMatrix(), mRasterTriangleBuf);
-
-			parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
-			{
-				ProjectedVertex& vertex = mProjectedVertexBuf[i];
-				vertex.invW = 1.0f / vertex.projectedPos.w;
-				vertex.projectedPos.z *= vertex.invW;
-			});
 		}
 
 		void Renderer::FragmentProcessing()

@@ -11,6 +11,19 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
+		struct Tile
+		{
+			static const int SIZE_LOG_2 = 5;
+			static const int SIZE = 1 << SIZE_LOG_2;
+			Vector2i minCoord, maxCoord;
+			vector<uint> triangleIds;
+
+			Tile(const Vector2i& min, const Vector2i& max)
+				: minCoord(min), maxCoord(max)
+			{
+			}
+		};
+
 		class Renderer
 		{
 		private:
@@ -24,6 +37,9 @@ namespace EDX
 			vector<RasterTriangle> mRasterTriangleBuf;
 			vector<QuadFragment> mFragmentBuf;
 
+			vector<Tile> mTiles;
+			Vector2i mTileDim;
+
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
 			void SetRenderState(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
@@ -34,6 +50,8 @@ namespace EDX
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
 			void Clipping(IndexBuffer* pIndexBuf);
+			void Rasterization();
+			void TiledRasterization();
 			void FragmentProcessing();
 		};
 
