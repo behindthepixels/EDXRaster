@@ -43,6 +43,8 @@ namespace EDX
 			vector<Tile> mTiles;
 			Vector2i mTileDim;
 
+			int FrameCount;
+
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
 			void SetRenderState(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);

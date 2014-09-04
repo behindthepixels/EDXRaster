@@ -20,7 +20,7 @@ namespace EDX
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, 0);
 
 			if (!mpScene)
 			{
@@ -28,7 +28,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadBlinnPhongPixelShader;
+			mpPixelShader = new QuadLambertianAlbedoPixelShader;
 
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
@@ -42,6 +42,8 @@ namespace EDX
 					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY)));
 				}
 			}
+
+			FrameCount = 0;
 		}
 
 		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
@@ -55,6 +57,7 @@ namespace EDX
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
+			FrameCount++;
 			mpFrameBuffer->Clear();
 			mGlobalRenderStates.mTextures = mesh.GetTextures();
 
@@ -176,35 +179,37 @@ namespace EDX
 							BoolSSE covered[8];
 							bool genFragment = false;
 							QuadFragment frag;
-							int sampleId = 0;
-							const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
-							if (sampleCoord == 1)
+							for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 							{
-								covered[sampleId] = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
-							}
-							else
-							{
-								IntSSE e0 = edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
-								IntSSE e1 = edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
-								IntSSE e2 = edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
-								covered[sampleId] = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
-							}
-
-							frag.coverageMask[sampleId] = covered[sampleId];
-							if (SSE::Any(covered[sampleId]))
-							{
-								sampleCoord = sampleCrdBase + sampleOffset;
-								rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
-								triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
-
-								const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-								const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-								const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
-
-								BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, sampleId, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, sampleId, covered[sampleId]);
-								if (!genFragment && SSE::Any(zTest & covered[sampleId]))
+								const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
+								if (sampleCount == 1)
 								{
-									genFragment = true;
+									covered[sampleId] = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
+								}
+								else
+								{
+									IntSSE e0 = edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
+									IntSSE e1 = edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
+									IntSSE e2 = edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
+									covered[sampleId] = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
+								}
+
+								frag.coverageMask[sampleId] = covered[sampleId];
+								if (SSE::Any(covered[sampleId]))
+								{
+									sampleCoord = sampleCrdBase + sampleOffset;
+									rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
+									triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
+
+									const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
+									const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
+									const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+
+									BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, sampleId, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, sampleId, covered[sampleId]);
+									if (!genFragment && SSE::Any(zTest & covered[sampleId]))
+									{
+										genFragment = true;
+									}
 								}
 							}
 
