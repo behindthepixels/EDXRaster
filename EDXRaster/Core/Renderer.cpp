@@ -20,7 +20,7 @@ namespace EDX
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, 2);
 
 			if (!mpScene)
 			{
@@ -154,6 +154,9 @@ namespace EDX
 					TriangleSIMD triSIMD;
 					triSIMD.Load(tri);
 
+					const uint sampleCount = mpFrameBuffer->GetSampleCount();
+					const float invSampleCount = 1.0f / float(sampleCount);
+					const uint multiSampleLevel = mpFrameBuffer->GetMultiSampleLevel();
 					Vector2i sampleCoord = Vector2i(minX << 4, minY << 4);
 					Vec2i_SSE rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
 					IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterSamplePos);
@@ -169,9 +172,24 @@ namespace EDX
 
 						for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
 						{
-							BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
-							if (SSE::Any(inside))
+							FloatSSE coveredCount;
+							for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 							{
+								const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
+								IntSSE e0 = edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
+								IntSSE e1 = edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
+								IntSSE e2 = edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
+
+								BoolSSE inside = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
+								if (SSE::Any(inside))
+								{
+									coveredCount -= FloatSSE(IntSSE(inside.v));
+								}
+							}
+
+							if (SSE::Any(coveredCount > FloatSSE(Math::EDX_ZERO)))
+							{
+								BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
 								sampleCoord = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
 								rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
 								triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
@@ -188,6 +206,7 @@ namespace EDX
 									frag.vId1 = triSIMD.vId1;
 									frag.vId2 = triSIMD.vId2;
 									frag.textureId = triSIMD.textureId;
+									frag.resolveWeight = coveredCount * invSampleCount;
 									frag.lambda0 = triSIMD.lambda0;
 									frag.lambda1 = triSIMD.lambda1;
 									frag.pixelCoord = pixelCrd;

@@ -20,7 +20,6 @@ namespace EDX
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
 
 			// Initialize materials
-			mTexIdx = mesh.GetMaterialIdxBuf();
 			const auto& materialInfo = mesh.GetMaterialInfo();
 			for (auto i = 0; i < materialInfo.size(); i++)
 			{
@@ -29,6 +28,7 @@ namespace EDX
 				else
 					mTextures.push_back(new ConstantTexture<Color>(materialInfo[i].color));
 			}
+			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
 
 		void Mesh::LoadPlane(const Vector3& pos,
@@ -43,6 +43,7 @@ namespace EDX
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
 
 			mTextures.push_back(new ConstantTexture<Color>(0.9f * Color::WHITE));
+			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
 
 		void Mesh::LoadSphere(const Vector3& pos,
@@ -59,6 +60,7 @@ namespace EDX
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
 
 			mTextures.push_back(new ConstantTexture<Color>(0.9f * Color::WHITE));
+			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
 	}
 }

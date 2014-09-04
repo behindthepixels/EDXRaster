@@ -101,6 +101,7 @@ namespace EDX
 			int vId0, vId1, vId2;
 			int textureId;
 			FloatSSE lambda0, lambda1;
+			FloatSSE resolveWeight;
 			Vector2i pixelCoord;
 			BoolSSE insideMask;
 
@@ -225,7 +226,7 @@ namespace EDX
 				}
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				return diffuse * quadAlbedo;
+				return diffuse * quadAlbedo * fragIn.resolveWeight;
 			}
 		};
 

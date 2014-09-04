@@ -5,12 +5,15 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
-		void FrameBuffer::Init(uint iWidth, uint iHeight)
+		void FrameBuffer::Init(uint iWidth, uint iHeight, uint sampleCountLog2)
 		{
 			mResX = iWidth;
 			mResY = iHeight;
 			mColorBuffer.Init(Vector2i(iWidth, iHeight));
 			mDepthBuffer.Init(Vector2i(iWidth, iHeight));
+
+			mMultiSampleLevel = sampleCountLog2;
+			mSampleCount = 1 << sampleCountLog2;
 		}
 
 		void FrameBuffer::SetColor(const Color& c, const int x, const int y)
