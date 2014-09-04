@@ -10,7 +10,7 @@ using namespace EDX;
 using namespace EDX::RasterRenderer;
 
 const int giWindowWidth = 1280;
-const int giWindowHeight = 720;
+const int giWindowHeight = 800;
 
 // Global variables
 RefPtr<Renderer>		gRenderer;

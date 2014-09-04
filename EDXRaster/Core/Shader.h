@@ -2,6 +2,7 @@
 
 #include "RenderState.h"
 #include "Math/Vector.h"
+#include "Graphics/Texture.h"
 #include "Graphics/Color.h"
 #include "SIMD/SSE.h"
 
@@ -98,6 +99,7 @@ namespace EDX
 			FloatSSE depth;
 
 			int vId0, vId1, vId2;
+			int textureId;
 			FloatSSE lambda0, lambda1;
 			Vector2i pixelCoord;
 			BoolSSE insideMask;
@@ -173,7 +175,58 @@ namespace EDX
 			virtual ~QuadPixelShader() {}
 			virtual Vec3f_SSE Shade(const QuadFragment& fragIn,
 				const Vector3& eyePos,
-				const Vector3& lightDir) const = 0;
+				const Vector3& lightDir,
+				RenderState& state) const = 0;
+		};
+
+		class QuadLambertianPixelShader : public QuadPixelShader
+		{
+		public:
+			Vec3f_SSE Shade(const QuadFragment& fragIn,
+				const Vector3& eyePos,
+				const Vector3& lightDir,
+				RenderState& state) const
+			{
+				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
+				Vec3f_SSE normal = fragIn.normal * w;
+				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
+
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
+				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
+
+				return diffuse;
+			}
+		};
+
+		class QuadLambertianAlbedoPixelShader : public QuadPixelShader
+		{
+		public:
+			Vec3f_SSE Shade(const QuadFragment& fragIn,
+				const Vector3& eyePos,
+				const Vector3& lightDir,
+				RenderState& state) const
+			{
+				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
+				Vec3f_SSE normal = fragIn.normal * w;
+				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
+
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
+				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
+				Vec3f_SSE quadAlbedo;
+				for (auto i = 0; i < 4; i++)
+				{
+					Color color = state.mTextures[fragIn.textureId]->Sample(Vector2(fragIn.texCoord.u[i], fragIn.texCoord.v[i]));
+					quadAlbedo.x[i] = color.r;
+					quadAlbedo.y[i] = color.g;
+					quadAlbedo.z[i] = color.b;
+				}
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
+
+				return diffuse * quadAlbedo;
+			}
 		};
 
 		class QuadBlinnPhongPixelShader : public QuadPixelShader
@@ -181,7 +234,8 @@ namespace EDX
 		public:
 			Vec3f_SSE Shade(const QuadFragment& fragIn,
 				const Vector3& eyePos,
-				const Vector3& lightDir) const
+				const Vector3& lightDir,
+				RenderState& state) const
 			{
 				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
 				Vec3f_SSE normal = fragIn.normal * w;
@@ -208,26 +262,6 @@ namespace EDX
 					Math::Pow(specularAmount[3], max(200.0f, 0.0001f)) * 2);
 
 				return diffuse + specularAmount;
-			}
-		};
-
-		class QuadLambertianPixelShader : public QuadPixelShader
-		{
-		public:
-			Vec3f_SSE Shade(const QuadFragment& fragIn,
-				const Vector3& eyePos,
-				const Vector3& lightDir) const
-			{
-				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
-				Vec3f_SSE normal = fragIn.normal * w;
-				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
-
-				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
-				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
-				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
-				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
-
-				return diffuse;
 			}
 		};
 	}

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Graphics/ObjMesh.h"
+#include "Graphics/Texture.h"
+
 #include "Memory/RefPtr.h"
 
 namespace EDX
@@ -16,6 +18,9 @@ namespace EDX
 		private:
 			RefPtr<VertexBuffer<struct Vertex_PositionNormalTex>> mpVertexBuf;
 			RefPtr<IndexBuffer> mpIndexBuf;
+
+			vector<RefPtr<Texture<Color>>> mTextures;
+			vector<uint> mTexIdx;
 
 		public:
 			void LoadMesh(const Vector3& pos,
@@ -42,6 +47,14 @@ namespace EDX
 			IndexBuffer* GetIndexBuffer() const
 			{
 				return mpIndexBuf.Ptr();
+			}
+			const vector<RefPtr<Texture<Color>>>& GetTextures() const
+			{
+				return mTextures;
+			}
+			const vector<uint>& GetTextureIds() const
+			{
+				return mTexIdx;
 			}
 		};
 	}

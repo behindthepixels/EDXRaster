@@ -28,7 +28,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadLambertianPixelShader;
+			mpPixelShader = new QuadLambertianAlbedoPixelShader;
 
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
@@ -56,9 +56,10 @@ namespace EDX
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
 			mpFrameBuffer->Clear();
+			mGlobalRenderStates.mTextures = mesh.GetTextures();
 
 			VertexProcessing(mesh.GetVertexBuffer());
-			Clipping(mesh.GetIndexBuffer());
+			Clipping(mesh.GetIndexBuffer(), mesh.GetTextureIds());
 			TiledRasterization();
 			FragmentProcessing();
 		}
@@ -72,10 +73,10 @@ namespace EDX
 			});
 		}
 
-		void Renderer::Clipping(IndexBuffer* pIndexBuf)
+		void Renderer::Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf)
 		{
 			mRasterTriangleBuf.clear();
-			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, mGlobalRenderStates.GetRasterMatrix(), mRasterTriangleBuf);
+			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, mGlobalRenderStates.GetRasterMatrix(), mRasterTriangleBuf);
 
 			parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
 			{
@@ -186,6 +187,7 @@ namespace EDX
 									frag.vId0 = triSIMD.vId0;
 									frag.vId1 = triSIMD.vId1;
 									frag.vId2 = triSIMD.vId2;
+									frag.textureId = triSIMD.textureId;
 									frag.lambda0 = triSIMD.lambda0;
 									frag.lambda1 = triSIMD.lambda1;
 									frag.pixelCoord = pixelCrd;
@@ -264,6 +266,7 @@ namespace EDX
 								frag.vId0 = triSIMD.vId0;
 								frag.vId1 = triSIMD.vId1;
 								frag.vId2 = triSIMD.vId2;
+								frag.textureId = triSIMD.textureId;
 								frag.lambda0 = triSIMD.lambda0;
 								frag.lambda1 = triSIMD.lambda1;
 								frag.pixelCoord = pixelCrd;
@@ -299,7 +302,8 @@ namespace EDX
 				frag.Interpolate(v0, v1, v2, frag.lambda0, frag.lambda1);
 				Vec3f_SSE c = mpPixelShader->Shade(frag,
 					Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
-					Vector3(-1, 1, -1));
+					Vector3(-1, 1, -1),
+					mGlobalRenderStates);
 
 				if (frag.insideMask[0] != 0 && mpFrameBuffer->ZTest(frag.depth[0], frag.pixelCoord.x, frag.pixelCoord.y))
 				{

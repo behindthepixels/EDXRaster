@@ -1,9 +1,15 @@
 #pragma once
 
+#include "EDXPrerequisites.h"
 #include "Math/Matrix.h"
+#include "Memory/RefPtr.h"
 
 namespace EDX
 {
+	template<typename T>
+	class Texture;
+	class Color;
+
 	namespace RasterRenderer
 	{
 		class RenderState
@@ -14,6 +20,11 @@ namespace EDX
 			Matrix mProjMatrix;
 			Matrix mModelViewProjMatrix;
 			Matrix mRasterMatrix;
+
+			bool mBackFaceCull;
+
+
+			vector<RefPtr<Texture<Color>>> mTextures;
 
 		public:
 			const Matrix& GetModelViewProjMatrix() const { return mModelViewProjMatrix; }

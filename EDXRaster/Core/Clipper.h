@@ -67,7 +67,7 @@ namespace EDX
 			}
 
 		public:
-			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const Matrix& rasterMatrix, vector<RasterTriangle>& trianglesBuf)
+			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf, const Matrix& rasterMatrix, vector<RasterTriangle>& trianglesBuf)
 			{
 				//parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
 				for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
@@ -77,6 +77,7 @@ namespace EDX
 					const Vector4& v0 = verticesIn[idx0].projectedPos;
 					const Vector4& v1 = verticesIn[idx1].projectedPos;
 					const Vector4& v2 = verticesIn[idx2].projectedPos;
+					const uint texId = texIdBuf[i];
 
 					uint clipCode0 = ComputeClipCode(v0);
 					uint clipCode1 = ComputeClipCode(v1);
@@ -140,6 +141,7 @@ namespace EDX
 									verticesIn[clipVertIds[k - 1]].projectedPos.HomogeneousProject(),
 									verticesIn[clipVertIds[k]].projectedPos.HomogeneousProject(),
 									idx,
+									texId,
 									rasterMatrix))
 								{
 									trianglesBuf.push_back(tri);
@@ -155,6 +157,7 @@ namespace EDX
 						verticesIn[idx1].projectedPos.HomogeneousProject(),
 						verticesIn[idx2].projectedPos.HomogeneousProject(),
 						pIndex,
+						texId,
 						rasterMatrix))
 					{
 						trianglesBuf.push_back(tri);

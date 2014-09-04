@@ -16,11 +16,12 @@ namespace EDX
 
 			float invDet;
 			uint vId0, vId1, vId2;
+			int textureId;
 
 			float lambda0, lambda1; // Barycentric coordinates
 
 
-			bool Setup(Vector3& a, Vector3& b, Vector3& c, const uint* pIdx, const Matrix& rasterMatrix)
+			bool Setup(Vector3& a, Vector3& b, Vector3& c, const uint* pIdx, const uint texId, const Matrix& rasterMatrix)
 			{
 				a = Matrix::TransformPoint(a, rasterMatrix);
 				b = Matrix::TransformPoint(b, rasterMatrix);
@@ -54,6 +55,7 @@ namespace EDX
 
 				invDet = 1.0f / float(Math::Abs(det));
 				vId0 = pIdx[0]; vId1 = pIdx[1]; vId2 = pIdx[2];
+				textureId = texId;
 
 				return true;
 			}
@@ -99,6 +101,7 @@ namespace EDX
 
 			FloatSSE invDet;
 			uint vId0, vId1, vId2;
+			uint textureId;
 
 			FloatSSE lambda0, lambda1;
 
@@ -132,6 +135,7 @@ namespace EDX
 				vId0 = tri.vId0;
 				vId1 = tri.vId1;
 				vId2 = tri.vId2;
+				textureId = tri.textureId;
 			}
 
 			__forceinline IntSSE TopLeftEdge(const Vec2i_SSE& v1, const Vec2i_SSE& v2) const
