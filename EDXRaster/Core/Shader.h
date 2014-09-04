@@ -96,14 +96,13 @@ namespace EDX
 			Vec3f_SSE position;
 			Vec3f_SSE normal;
 			Vec2f_SSE texCoord;
-			FloatSSE depth;
+			FloatSSE depth[8];
 
 			int vId0, vId1, vId2;
 			int textureId;
 			FloatSSE lambda0, lambda1;
-			FloatSSE resolveWeight;
 			Vector2i pixelCoord;
-			BoolSSE insideMask;
+			BoolSSE coverageMask[8];
 
 			void Interpolate(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
@@ -129,14 +128,15 @@ namespace EDX
 			FloatSSE GetDepth(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
 				const ProjectedVertex& v2,
+				const uint sId,
 				const FloatSSE& b0,
 				const FloatSSE& b1)
 			{
 				const auto One = FloatSSE(Math::EDX_ONE);
 				FloatSSE b2 = One - b0 - b1;
-				depth = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
+				depth[sId] = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
 
-				return depth;
+				return depth[sId];
 			}
 		};
 
@@ -226,7 +226,7 @@ namespace EDX
 				}
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				return diffuse * quadAlbedo * fragIn.resolveWeight;
+				return diffuse * quadAlbedo;
 			}
 		};
 

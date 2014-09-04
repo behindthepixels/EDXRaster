@@ -7,23 +7,24 @@ namespace EDX
 	{
 		void FrameBuffer::Init(uint iWidth, uint iHeight, uint sampleCountLog2)
 		{
-			mResX = iWidth;
-			mResY = iHeight;
-			mColorBuffer.Init(Vector2i(iWidth, iHeight));
-			mDepthBuffer.Init(Vector2i(iWidth, iHeight));
-
 			mMultiSampleLevel = sampleCountLog2;
 			mSampleCount = 1 << sampleCountLog2;
+
+			mResX = iWidth;
+			mResY = iHeight;
+			mColorBufferMS.Init(Vector3i(mSampleCount, iWidth, iHeight));
+			mColorBuffer.Init(Vector2i(iWidth, iHeight));
+			mDepthBuffer.Init(Vector3i(mSampleCount, iWidth, iHeight));
 		}
 
-		void FrameBuffer::SetColor(const Color& c, const int x, const int y)
+		void FrameBuffer::SetPixel(const Color& c, const int x, const int y, const uint sId)
 		{
-			mColorBuffer[Vector2i(x, mResY - 1 - y)] = c;
+			mColorBufferMS[Vector3i(sId, x, mResY - 1 - y)] = c;
 		}
 
-		bool FrameBuffer::ZTest(const float d, const int x, const int y)
+		bool FrameBuffer::ZTest(const float d, const int x, const int y, const uint sId)
 		{
-			float& currDepth = mDepthBuffer[Vector2i(x, mResY - 1 - y)];
+			float& currDepth = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y)];
 			if (d > currDepth)
 				return false;
 
@@ -31,12 +32,12 @@ namespace EDX
 			return true;
 		}
 
-		BoolSSE FrameBuffer::ZTestQuad(const FloatSSE& d, const int x, const int y, const BoolSSE& mask)
+		BoolSSE FrameBuffer::ZTestQuad(const FloatSSE& d, const int x, const int y, const uint sId, const BoolSSE& mask)
 		{
-			float& currDepth00 = mDepthBuffer[Vector2i(x, mResY - 1 - y)];
-			float& currDepth01 = mDepthBuffer[Vector2i(x + 1, mResY - 1 - y)];
-			float& currDepth10 = mDepthBuffer[Vector2i(x, mResY - 1 - y - 1)];
-			float& currDepth11 = mDepthBuffer[Vector2i(x + 1, mResY - 1 - y - 1)];
+			float& currDepth00 = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y)];
+			float& currDepth01 = mDepthBuffer[Vector3i(sId, x + 1, mResY - 1 - y)];
+			float& currDepth10 = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y - 1)];
+			float& currDepth11 = mDepthBuffer[Vector3i(sId, x + 1, mResY - 1 - y - 1)];
 
 			bool lt00 = d[0] <= currDepth00;
 			bool lt01 = d[1] <= currDepth01;
@@ -55,10 +56,31 @@ namespace EDX
 			return BoolSSE(lt00, lt01, lt10, lt11);
 		}
 
+		void FrameBuffer::Resolve()
+		{
+			const float invSampleCount = 1.0f / float(mSampleCount);
+			for (auto y = 0; y < mResY; y++)
+			{
+				for (auto x = 0; x < mResX; x++)
+				{
+					Color c = 0;
+					for (auto s = 0; s < mSampleCount; s++)
+					{
+						c += mColorBufferMS[Vector3i(s, x, y)];
+					}
+					c *= invSampleCount;
+					mColorBuffer[Vector2i(x, y)] = c;
+				}
+			}
+		}
+
 		void FrameBuffer::Clear(const bool clearColor, const bool clearDepth)
 		{
 			if (clearColor)
+			{
 				mColorBuffer.Clear();
+				mColorBufferMS.Clear();
+			}
 
 			for (auto i = 0; i < mDepthBuffer.LinearSize(); i++)
 				mDepthBuffer[i] = 1.0f;

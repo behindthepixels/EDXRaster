@@ -28,7 +28,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadLambertianAlbedoPixelShader;
+			mpPixelShader = new QuadBlinnPhongPixelShader;
 
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
@@ -136,6 +136,9 @@ namespace EDX
 				}
 			}
 
+			const uint sampleCount = mpFrameBuffer->GetSampleCount();
+			const uint multiSampleLevel = mpFrameBuffer->GetMultiSampleLevel();
+
 			//for (auto i = 0; i < mTiles.size(); i++)
 			parallel_for(0, (int)mTiles.size(), [&](int i)
 			{
@@ -154,9 +157,6 @@ namespace EDX
 					TriangleSIMD triSIMD;
 					triSIMD.Load(tri);
 
-					const uint sampleCount = mpFrameBuffer->GetSampleCount();
-					const float invSampleCount = 1.0f / float(sampleCount);
-					const uint multiSampleLevel = mpFrameBuffer->GetMultiSampleLevel();
 					Vector2i sampleCoord = Vector2i(minX << 4, minY << 4);
 					Vec2i_SSE rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
 					IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterSamplePos);
@@ -172,7 +172,10 @@ namespace EDX
 
 						for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
 						{
-							FloatSSE coveredCount;
+							const Vector2i sampleCrdBase = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
+							BoolSSE covered[8];
+							bool genFragment = false;
+							QuadFragment frag;
 							for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 							{
 								const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
@@ -180,40 +183,41 @@ namespace EDX
 								IntSSE e1 = edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
 								IntSSE e2 = edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
 
-								BoolSSE inside = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
-								if (SSE::Any(inside))
+								covered[sampleId] = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
+								frag.coverageMask[sampleId] = covered[sampleId];
+								if (SSE::Any(covered[sampleId]))
 								{
-									coveredCount -= FloatSSE(IntSSE(inside.v));
+									sampleCoord = sampleCrdBase + sampleOffset;
+									rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
+									triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
+
+									const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
+									const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
+									const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+
+									BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, sampleId, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, sampleId, covered[sampleId]);
+									if (!genFragment && SSE::Any(zTest & covered[sampleId]))
+									{
+										genFragment = true;
+									}
 								}
 							}
 
-							if (SSE::Any(coveredCount > FloatSSE(Math::EDX_ZERO)))
+							if (genFragment)
 							{
-								BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
-								sampleCoord = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
+								sampleCoord = sampleCrdBase;
 								rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
 								triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
 
-								const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-								const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-								const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+								frag.vId0 = triSIMD.vId0;
+								frag.vId1 = triSIMD.vId1;
+								frag.vId2 = triSIMD.vId2;
+								frag.textureId = triSIMD.textureId;
+								frag.lambda0 = triSIMD.lambda0;
+								frag.lambda1 = triSIMD.lambda1;
+								frag.pixelCoord = pixelCrd;
 
-								QuadFragment frag;
-								BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, inside);
-								if (SSE::Any(zTest))
-								{
-									frag.vId0 = triSIMD.vId0;
-									frag.vId1 = triSIMD.vId1;
-									frag.vId2 = triSIMD.vId2;
-									frag.textureId = triSIMD.textureId;
-									frag.resolveWeight = coveredCount * invSampleCount;
-									frag.lambda0 = triSIMD.lambda0;
-									frag.lambda1 = triSIMD.lambda1;
-									frag.pixelCoord = pixelCrd;
-									frag.insideMask = inside;
-
-									tile.fragmentBuf.push_back(frag);
-								}
+								tile.fragmentBuf.push_back(frag);
 							}
 
 							edgeVal0 += triSIMD.stepB0;
@@ -237,74 +241,74 @@ namespace EDX
 
 		void Renderer::Rasterization()
 		{
-			mFragmentBuf.clear();
-			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
-			{
-				RasterTriangle& tri = mRasterTriangleBuf[i];
+			//mFragmentBuf.clear();
+			//for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
+			//{
+			//	RasterTriangle& tri = mRasterTriangleBuf[i];
 
-				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
-				int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
-				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
-				int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> 4);
-				minX -= minX % 2;
-				minY -= minY % 2;
+			//	int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
+			//	int maxX = Math::Min(mpFrameBuffer->GetWidth() - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
+			//	int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
+			//	int maxY = Math::Min(mpFrameBuffer->GetHeight() - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> 4);
+			//	minX -= minX % 2;
+			//	minY -= minY % 2;
 
-				TriangleSIMD triSIMD;
-				triSIMD.Load(tri);
+			//	TriangleSIMD triSIMD;
+			//	triSIMD.Load(tri);
 
-				Vector2i sampleCoord = Vector2i(minX << 4, minY << 4);
-				Vec2i_SSE rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
-				IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterSamplePos);
-				IntSSE edgeVal1 = triSIMD.EdgeFunc1(rasterSamplePos);
-				IntSSE edgeVal2 = triSIMD.EdgeFunc2(rasterSamplePos);
+			//	Vector2i sampleCoord = Vector2i(minX << 4, minY << 4);
+			//	Vec2i_SSE rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
+			//	IntSSE edgeVal0 = triSIMD.EdgeFunc0(rasterSamplePos);
+			//	IntSSE edgeVal1 = triSIMD.EdgeFunc1(rasterSamplePos);
+			//	IntSSE edgeVal2 = triSIMD.EdgeFunc2(rasterSamplePos);
 
-				Vector2i pixelCrd;
-				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
-				{
-					IntSSE edgeYBase0 = edgeVal0;
-					IntSSE edgeYBase1 = edgeVal1;
-					IntSSE edgeYBase2 = edgeVal2;
+			//	Vector2i pixelCrd;
+			//	for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+			//	{
+			//		IntSSE edgeYBase0 = edgeVal0;
+			//		IntSSE edgeYBase1 = edgeVal1;
+			//		IntSSE edgeYBase2 = edgeVal2;
 
-					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
-					{
-						BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
-						if (SSE::Any(inside))
-						{
-							sampleCoord = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
-							rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
-							triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
+			//		for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+			//		{
+			//			BoolSSE inside = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
+			//			if (SSE::Any(inside))
+			//			{
+			//				sampleCoord = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
+			//				rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
+			//				triSIMD.CalcBarycentricCoord(rasterSamplePos.x, rasterSamplePos.y);
 
-							const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-							const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-							const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+			//				const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
+			//				const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
+			//				const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
 
-							QuadFragment frag;
-							BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, inside);
-							if (SSE::Any(zTest))
-							{
-								frag.vId0 = triSIMD.vId0;
-								frag.vId1 = triSIMD.vId1;
-								frag.vId2 = triSIMD.vId2;
-								frag.textureId = triSIMD.textureId;
-								frag.lambda0 = triSIMD.lambda0;
-								frag.lambda1 = triSIMD.lambda1;
-								frag.pixelCoord = pixelCrd;
-								frag.insideMask = inside;
+			//				QuadFragment frag;
+			//				BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, inside);
+			//				if (SSE::Any(zTest))
+			//				{
+			//					frag.vId0 = triSIMD.vId0;
+			//					frag.vId1 = triSIMD.vId1;
+			//					frag.vId2 = triSIMD.vId2;
+			//					frag.textureId = triSIMD.textureId;
+			//					frag.lambda0 = triSIMD.lambda0;
+			//					frag.lambda1 = triSIMD.lambda1;
+			//					frag.pixelCoord = pixelCrd;
+			//					frag.coverageMask = inside;
 
-								mFragmentBuf.push_back(frag);
-							}
-						}
+			//					mFragmentBuf.push_back(frag);
+			//				}
+			//			}
 
-						edgeVal0 += triSIMD.stepB0;
-						edgeVal1 += triSIMD.stepB1;
-						edgeVal2 += triSIMD.stepB2;
-					}
+			//			edgeVal0 += triSIMD.stepB0;
+			//			edgeVal1 += triSIMD.stepB1;
+			//			edgeVal2 += triSIMD.stepB2;
+			//		}
 
-					edgeVal0 = edgeYBase0 + triSIMD.stepC0;
-					edgeVal1 = edgeYBase1 + triSIMD.stepC1;
-					edgeVal2 = edgeYBase2 + triSIMD.stepC2;
-				}
-			}
+			//		edgeVal0 = edgeYBase0 + triSIMD.stepC0;
+			//		edgeVal1 = edgeYBase1 + triSIMD.stepC1;
+			//		edgeVal2 = edgeYBase2 + triSIMD.stepC2;
+			//	}
+			//}
 		}
 
 		void Renderer::FragmentProcessing()
@@ -324,23 +328,28 @@ namespace EDX
 					Vector3(-1, 1, -1),
 					mGlobalRenderStates);
 
-				if (frag.insideMask[0] != 0 && mpFrameBuffer->ZTest(frag.depth[0], frag.pixelCoord.x, frag.pixelCoord.y))
+				for (auto sId = 0; sId < mpFrameBuffer->GetSampleCount(); sId++)
 				{
-					mpFrameBuffer->SetColor(Color(c.x[0], c.y[0], c.z[0]), frag.pixelCoord.x, frag.pixelCoord.y);
-				}
-				if (frag.insideMask[1] != 0 && mpFrameBuffer->ZTest(frag.depth[1], frag.pixelCoord.x + 1, frag.pixelCoord.y))
-				{
-					mpFrameBuffer->SetColor(Color(c.x[1], c.y[1], c.z[1]), frag.pixelCoord.x + 1, frag.pixelCoord.y);
-				}
-				if (frag.insideMask[2] != 0 && mpFrameBuffer->ZTest(frag.depth[2], frag.pixelCoord.x, frag.pixelCoord.y + 1))
-				{
-					mpFrameBuffer->SetColor(Color(c.x[2], c.y[2], c.z[2]), frag.pixelCoord.x, frag.pixelCoord.y + 1);
-				}
-				if (frag.insideMask[3] != 0 && mpFrameBuffer->ZTest(frag.depth[3], frag.pixelCoord.x + 1, frag.pixelCoord.y + 1))
-				{
-					mpFrameBuffer->SetColor(Color(c.x[3], c.y[3], c.z[3]), frag.pixelCoord.x + 1, frag.pixelCoord.y + 1);
+					if (frag.coverageMask[sId][0] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][0], frag.pixelCoord.x, frag.pixelCoord.y, sId))
+					{
+						mpFrameBuffer->SetPixel(Color(c.x[0], c.y[0], c.z[0]), frag.pixelCoord.x, frag.pixelCoord.y, sId);
+					}
+					if (frag.coverageMask[sId][1] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][1], frag.pixelCoord.x + 1, frag.pixelCoord.y, sId))
+					{
+						mpFrameBuffer->SetPixel(Color(c.x[1], c.y[1], c.z[1]), frag.pixelCoord.x + 1, frag.pixelCoord.y, sId);
+					}
+					if (frag.coverageMask[sId][2] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][2], frag.pixelCoord.x, frag.pixelCoord.y + 1, sId))
+					{
+						mpFrameBuffer->SetPixel(Color(c.x[2], c.y[2], c.z[2]), frag.pixelCoord.x, frag.pixelCoord.y + 1, sId);
+					}
+					if (frag.coverageMask[sId][3] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][3], frag.pixelCoord.x + 1, frag.pixelCoord.y + 1, sId))
+					{
+						mpFrameBuffer->SetPixel(Color(c.x[3], c.y[3], c.z[3]), frag.pixelCoord.x + 1, frag.pixelCoord.y + 1, sId);
+					}
 				}
 			});
+
+			mpFrameBuffer->Resolve();
 		}
 
 		const float* Renderer::GetBackBuffer() const
