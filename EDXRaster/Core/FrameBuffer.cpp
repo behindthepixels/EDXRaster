@@ -58,6 +58,12 @@ namespace EDX
 
 		void FrameBuffer::Resolve()
 		{
+			if (mSampleCount == 1)
+			{
+				memcpy(mColorBuffer.ModifiableData(), mColorBufferMS.Data(), mColorBuffer.LinearSize() * sizeof(Color));
+				return;
+			}
+
 			const float invSampleCount = 1.0f / float(mSampleCount);
 			for (auto y = 0; y < mResY; y++)
 			{

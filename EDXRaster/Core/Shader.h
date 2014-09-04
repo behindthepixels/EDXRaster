@@ -96,13 +96,13 @@ namespace EDX
 			Vec3f_SSE position;
 			Vec3f_SSE normal;
 			Vec2f_SSE texCoord;
-			FloatSSE depth[8];
+			FloatSSE depth[1];
 
-			int vId0, vId1, vId2;
-			int textureId;
+			int vId0 : 24, vId1 : 24, vId2 : 24;
+			int textureId : 24;
 			FloatSSE lambda0, lambda1;
 			Vector2i pixelCoord;
-			BoolSSE coverageMask[8];
+			BoolSSE coverageMask[1];
 
 			void Interpolate(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
