@@ -91,24 +91,69 @@ namespace EDX
 			}
 		};
 
+		struct CoverageMask
+		{
+			int bits[4]; // For up to 32x MSAA coverage mask
+			inline CoverageMask()
+			{
+				bits[0] = 0; bits[1] = 0; bits[2] = 0; bits[3] = 0;
+			}
+			inline void SetBit(int i)
+			{
+				int id = i >> 5;
+				int shift = i & 31;
+				bits[id] |= (1 << shift);
+			}
+			inline void SetBit(const BoolSSE& mask, uint sampleId)
+			{
+				uint sampleOffset = sampleId << 2;
+				if (mask[0] != 0)
+				{
+					SetBit(sampleOffset + 0);
+				}
+				if (mask[1] != 0)
+				{
+					SetBit(sampleOffset + 1);
+				}
+				if (mask[2] != 0)
+				{
+					SetBit(sampleOffset + 2);
+				}
+				if (mask[3] != 0)
+				{
+					SetBit(sampleOffset + 3);
+				}
+			}
+			inline int GetBit(int i)
+			{
+				int id = i >> 5;
+				int shift = i & 31;
+				return bits[id] & (1 << shift);
+			}
+			inline int Merge()
+			{
+				return bits[0] | bits[1] | bits[2] | bits[3];
+			}
+		};
+
 		struct QuadFragment
 		{
-			Vec3f_SSE position;
-			Vec3f_SSE normal;
-			Vec2f_SSE texCoord;
-			FloatSSE depth[1];
+			Vec3f_SSE shadingResult;
 
 			int vId0 : 24, vId1 : 24, vId2 : 24;
 			int textureId : 24;
 			FloatSSE lambda0, lambda1;
-			Vector2i pixelCoord;
-			BoolSSE coverageMask[1];
+			unsigned short x, y;
+			CoverageMask coverageMask;
 
 			void Interpolate(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
 				const ProjectedVertex& v2,
 				FloatSSE& b0,
-				FloatSSE& b1)
+				FloatSSE& b1,
+				Vec3f_SSE& position,
+				Vec3f_SSE& normal,
+				Vec2f_SSE& texCoord)
 			{
 				const auto One = FloatSSE(Math::EDX_ONE);
 				FloatSSE b2 = One - b0 - b1;
@@ -134,9 +179,7 @@ namespace EDX
 			{
 				const auto One = FloatSSE(Math::EDX_ONE);
 				FloatSSE b2 = One - b0 - b1;
-				depth[sId] = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
-
-				return depth[sId];
+				return b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
 			}
 		};
 
@@ -174,81 +217,93 @@ namespace EDX
 		{
 		public:
 			virtual ~QuadPixelShader() {}
-			virtual Vec3f_SSE Shade(const QuadFragment& fragIn,
+			virtual void Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
+				const Vec3f_SSE& position,
+				const Vec3f_SSE& normal,
+				const Vec2f_SSE& texCoord,
 				RenderState& state) const = 0;
 		};
 
 		class QuadLambertianPixelShader : public QuadPixelShader
 		{
 		public:
-			Vec3f_SSE Shade(const QuadFragment& fragIn,
+			void Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
+				const Vec3f_SSE& position,
+				const Vec3f_SSE& normal,
+				const Vec2f_SSE& texCoord,
 				RenderState& state) const
 			{
-				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
-				Vec3f_SSE normal = fragIn.normal * w;
+				FloatSSE w = SSE::Rsqrt(Math::Dot(normal, normal));
+				Vec3f_SSE _normal = normal * w;
 				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
 
-				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, _normal);
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				return diffuse;
+				fragIn.shadingResult = diffuse;
 			}
 		};
 
 		class QuadLambertianAlbedoPixelShader : public QuadPixelShader
 		{
 		public:
-			Vec3f_SSE Shade(const QuadFragment& fragIn,
+			void Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
+				const Vec3f_SSE& position,
+				const Vec3f_SSE& normal,
+				const Vec2f_SSE& texCoord,
 				RenderState& state) const
 			{
-				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
-				Vec3f_SSE normal = fragIn.normal * w;
+				FloatSSE w = SSE::Rsqrt(Math::Dot(normal, normal));
+				Vec3f_SSE _normal = normal * w;
 				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
 
-				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, _normal);
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
 				Vec3f_SSE quadAlbedo;
 				for (auto i = 0; i < 4; i++)
 				{
-					Color color = state.mTextures[fragIn.textureId]->Sample(Vector2(fragIn.texCoord.u[i], fragIn.texCoord.v[i]));
+					Color color = state.mTextures[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]));
 					quadAlbedo.x[i] = color.r;
 					quadAlbedo.y[i] = color.g;
 					quadAlbedo.z[i] = color.b;
 				}
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				return diffuse * quadAlbedo;
+				fragIn.shadingResult = diffuse * quadAlbedo;
 			}
 		};
 
 		class QuadBlinnPhongPixelShader : public QuadPixelShader
 		{
 		public:
-			Vec3f_SSE Shade(const QuadFragment& fragIn,
+			void Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
+				const Vec3f_SSE& position,
+				const Vec3f_SSE& normal,
+				const Vec2f_SSE& texCoord,
 				RenderState& state) const
 			{
-				FloatSSE w = SSE::Rsqrt(Math::Dot(fragIn.normal, fragIn.normal));
-				Vec3f_SSE normal = fragIn.normal * w;
+				FloatSSE w = SSE::Rsqrt(Math::Dot(normal, normal));
+				Vec3f_SSE _normal = normal * w;
 				Vec3f_SSE vecLightDir = Vec3f_SSE(Math::Normalize(lightDir));
 
-				FloatSSE diffuseAmount = Math::Dot(vecLightDir, normal);
+				FloatSSE diffuseAmount = Math::Dot(vecLightDir, _normal);
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
 
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				Vec3f_SSE eyeDir = Vec3f_SSE(eyePos) - fragIn.position;
+				Vec3f_SSE eyeDir = Vec3f_SSE(eyePos) - position;
 				w = SSE::Rsqrt(Math::Dot(eyeDir, eyeDir));
 				eyeDir *= w;
 
@@ -262,7 +317,7 @@ namespace EDX
 					Math::Pow(specularAmount[2], max(200.0f, 0.0001f)) * 2,
 					Math::Pow(specularAmount[3], max(200.0f, 0.0001f)) * 2);
 
-				return diffuse + specularAmount;
+				fragIn.shadingResult = diffuse + specularAmount;
 			}
 		};
 	}

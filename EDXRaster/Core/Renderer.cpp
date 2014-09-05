@@ -20,7 +20,7 @@ namespace EDX
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, 0);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, 2);
 
 			if (!mpScene)
 			{
@@ -28,7 +28,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadLambertianAlbedoPixelShader;
+			mpPixelShader = new QuadBlinnPhongPixelShader;
 
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
@@ -176,26 +176,26 @@ namespace EDX
 						for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
 						{
 							const Vector2i sampleCrdBase = Vector2i(pixelCrd.x << 4, pixelCrd.y << 4);
-							BoolSSE covered[8];
 							bool genFragment = false;
 							QuadFragment frag;
 							for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 							{
 								const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
+								BoolSSE covered;
 								if (sampleCount == 1)
 								{
-									covered[sampleId] = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
+									covered = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
 								}
 								else
 								{
 									IntSSE e0 = edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
 									IntSSE e1 = edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
 									IntSSE e2 = edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
-									covered[sampleId] = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
+
+									covered = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
 								}
 
-								frag.coverageMask[sampleId] = covered[sampleId];
-								if (SSE::Any(covered[sampleId]))
+								if (SSE::Any(covered))
 								{
 									sampleCoord = sampleCrdBase + sampleOffset;
 									rasterSamplePos = Vec2i_SSE(IntSSE(sampleCoord.x + 8, sampleCoord.x + 24, sampleCoord.x + 8, sampleCoord.x + 24), IntSSE(sampleCoord.y + 8, sampleCoord.y + 8, sampleCoord.y + 24, sampleCoord.y + 24));
@@ -205,9 +205,11 @@ namespace EDX
 									const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
 									const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
 
-									BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, sampleId, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, sampleId, covered[sampleId]);
-									if (!genFragment && SSE::Any(zTest & covered[sampleId]))
+									BoolSSE zTest = mpFrameBuffer->ZTestQuad(frag.GetDepth(v0, v1, v2, sampleId, triSIMD.lambda0, triSIMD.lambda1), pixelCrd.x, pixelCrd.y, sampleId, covered);
+									BoolSSE visible = zTest & covered;
+									if (SSE::Any(visible))
 									{
+										frag.coverageMask.SetBit(visible, sampleId);
 										genFragment = true;
 									}
 								}
@@ -225,7 +227,8 @@ namespace EDX
 								frag.textureId = triSIMD.textureId;
 								frag.lambda0 = triSIMD.lambda0;
 								frag.lambda1 = triSIMD.lambda1;
-								frag.pixelCoord = pixelCrd;
+								frag.x = pixelCrd.x;
+								frag.y = pixelCrd.y;
 
 								tile.fragmentBuf.push_back(frag);
 							}
@@ -332,32 +335,43 @@ namespace EDX
 				const ProjectedVertex& v1 = mProjectedVertexBuf[frag.vId1];
 				const ProjectedVertex& v2 = mProjectedVertexBuf[frag.vId2];
 
-				frag.Interpolate(v0, v1, v2, frag.lambda0, frag.lambda1);
-				Vec3f_SSE c = mpPixelShader->Shade(frag,
+				Vec3f_SSE position;
+				Vec3f_SSE normal;
+				Vec2f_SSE texCoord;
+				frag.Interpolate(v0, v1, v2, frag.lambda0, frag.lambda1, position, normal, texCoord);
+				mpPixelShader->Shade(frag,
 					Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
 					Vector3(-1, 1, -1),
+					position,
+					normal,
+					texCoord,
 					mGlobalRenderStates);
 
+			});
+
+			for (auto& frag : mFragmentBuf)
+			{
 				for (auto sId = 0; sId < mpFrameBuffer->GetSampleCount(); sId++)
 				{
-					if (frag.coverageMask[sId][0] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][0], frag.pixelCoord.x, frag.pixelCoord.y, sId))
+					int maskShift = sId << 2;
+					if (frag.coverageMask.GetBit(maskShift) != 0)
 					{
-						mpFrameBuffer->SetPixel(Color(c.x[0], c.y[0], c.z[0]), frag.pixelCoord.x, frag.pixelCoord.y, sId);
+						mpFrameBuffer->SetPixel(Color(frag.shadingResult.x[0], frag.shadingResult.y[0], frag.shadingResult.z[0]), frag.x, frag.y, sId);
 					}
-					if (frag.coverageMask[sId][1] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][1], frag.pixelCoord.x + 1, frag.pixelCoord.y, sId))
+					if (frag.coverageMask.GetBit(maskShift + 1) != 0)
 					{
-						mpFrameBuffer->SetPixel(Color(c.x[1], c.y[1], c.z[1]), frag.pixelCoord.x + 1, frag.pixelCoord.y, sId);
+						mpFrameBuffer->SetPixel(Color(frag.shadingResult.x[1], frag.shadingResult.y[1], frag.shadingResult.z[1]), frag.x + 1, frag.y, sId);
 					}
-					if (frag.coverageMask[sId][2] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][2], frag.pixelCoord.x, frag.pixelCoord.y + 1, sId))
+					if (frag.coverageMask.GetBit(maskShift + 2) != 0)
 					{
-						mpFrameBuffer->SetPixel(Color(c.x[2], c.y[2], c.z[2]), frag.pixelCoord.x, frag.pixelCoord.y + 1, sId);
+						mpFrameBuffer->SetPixel(Color(frag.shadingResult.x[2], frag.shadingResult.y[2], frag.shadingResult.z[2]), frag.x, frag.y + 1, sId);
 					}
-					if (frag.coverageMask[sId][3] != 0 && mpFrameBuffer->ZTest(frag.depth[sId][3], frag.pixelCoord.x + 1, frag.pixelCoord.y + 1, sId))
+					if (frag.coverageMask.GetBit(maskShift + 3) != 0)
 					{
-						mpFrameBuffer->SetPixel(Color(c.x[3], c.y[3], c.z[3]), frag.pixelCoord.x + 1, frag.pixelCoord.y + 1, sId);
+						mpFrameBuffer->SetPixel(Color(frag.shadingResult.x[3], frag.shadingResult.y[3], frag.shadingResult.z[3]), frag.x + 1, frag.y + 1, sId);
 					}
 				}
-			});
+			}
 
 			mpFrameBuffer->Resolve();
 		}

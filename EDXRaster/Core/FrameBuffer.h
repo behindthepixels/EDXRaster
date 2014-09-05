@@ -50,7 +50,7 @@ namespace EDX
 			}
 			const float* GetColorBuffer() const
 			{
-				return (float*)mColorBuffer.Data();
+				return mSampleCount == 1 ? (float*)mColorBufferMS.Data() : (float*)mColorBuffer.Data();
 			}
 
 			void Clear(const bool clearColor = true, const bool clearDepth = true);

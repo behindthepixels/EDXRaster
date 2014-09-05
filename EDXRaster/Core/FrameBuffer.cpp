@@ -1,6 +1,9 @@
 #include "FrameBuffer.h"
 #include "Math/EDXMath.h"
 
+#include <ppl.h>
+using namespace concurrency;
+
 namespace EDX
 {
 	namespace RasterRenderer
@@ -59,25 +62,20 @@ namespace EDX
 		void FrameBuffer::Resolve()
 		{
 			if (mSampleCount == 1)
-			{
-				memcpy(mColorBuffer.ModifiableData(), mColorBufferMS.Data(), mColorBuffer.LinearSize() * sizeof(Color));
 				return;
-			}
 
 			const float invSampleCount = 1.0f / float(mSampleCount);
-			for (auto y = 0; y < mResY; y++)
+			parallel_for(0, (int)mColorBuffer.LinearSize() - 1, [&](int i)
 			{
-				for (auto x = 0; x < mResX; x++)
+				const Vector2i idx = mColorBuffer.Index(i);
+				Color c = 0;
+				for (auto s = 0; s < mSampleCount; s++)
 				{
-					Color c = 0;
-					for (auto s = 0; s < mSampleCount; s++)
-					{
-						c += mColorBufferMS[Vector3i(s, x, y)];
-					}
-					c *= invSampleCount;
-					mColorBuffer[Vector2i(x, y)] = c;
+					c += mColorBufferMS[Vector3i(s, idx.x, idx.y)];
 				}
-			}
+				c *= invSampleCount;
+				mColorBuffer[i] = c;
+			});
 		}
 
 		void FrameBuffer::Clear(const bool clearColor, const bool clearDepth)
