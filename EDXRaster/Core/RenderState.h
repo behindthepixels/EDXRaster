@@ -24,7 +24,7 @@ namespace EDX
 			bool mBackFaceCull;
 
 
-			vector<RefPtr<Texture<Color>>> mTextures;
+			vector<RefPtr<Texture<Color>>> mTextureSlots;
 
 		public:
 			const Matrix& GetModelViewProjMatrix() const { return mModelViewProjMatrix; }

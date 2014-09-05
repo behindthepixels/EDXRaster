@@ -271,7 +271,7 @@ namespace EDX
 				Vec3f_SSE quadAlbedo;
 				for (auto i = 0; i < 4; i++)
 				{
-					Color color = state.mTextures[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]));
+					Color color = state.mTextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]));
 					quadAlbedo.x[i] = color.r;
 					quadAlbedo.y[i] = color.g;
 					quadAlbedo.z[i] = color.b;
@@ -311,7 +311,7 @@ namespace EDX
 				w = SSE::Rsqrt(Math::Dot(halfVec, halfVec));
 				halfVec *= w;
 
-				FloatSSE specularAmount = Math::Dot(normal, halfVec);
+				FloatSSE specularAmount = Math::Dot(_normal, halfVec);
 				specularAmount = FloatSSE(Math::Pow(specularAmount[0], max(200.0f, 0.0001f)) * 2,
 					Math::Pow(specularAmount[1], max(200.0f, 0.0001f)) * 2,
 					Math::Pow(specularAmount[2], max(200.0f, 0.0001f)) * 2,
