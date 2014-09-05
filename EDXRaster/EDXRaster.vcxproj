@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\FrameBuffer.cpp" />
+    <ClCompile Include="Core\Rasterizer.cpp" />
     <ClCompile Include="Core\Renderer.cpp" />
     <ClCompile Include="Core\Scene.cpp" />
     <ClCompile Include="Utils\Mesh.cpp" />
@@ -27,6 +28,7 @@
   <ItemGroup>
     <ClInclude Include="Core\Clipper.h" />
     <ClInclude Include="Core\FrameBuffer.h" />
+    <ClInclude Include="Core\Rasterizer.h" />
     <ClInclude Include="Core\RasterTriangle.h" />
     <ClInclude Include="Core\Renderer.h" />
     <ClInclude Include="Core\RenderState.h" />

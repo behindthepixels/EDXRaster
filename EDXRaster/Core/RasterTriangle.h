@@ -15,8 +15,8 @@ namespace EDX
 			int stepB0, stepC0, stepB1, stepC1, stepB2, stepC2;
 
 			float invDet;
-			uint vId0, vId1, vId2;
-			int textureId;
+			int vId0 : 24, vId1 : 24, vId2 : 24;
+			int textureId : 24;
 
 			float lambda0, lambda1; // Barycentric coordinates
 
