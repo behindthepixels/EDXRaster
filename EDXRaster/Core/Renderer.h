@@ -39,6 +39,7 @@ namespace EDX
 			vector<ProjectedVertex> mProjectedVertexBuf;
 			vector<RasterTriangle> mRasterTriangleBuf;
 			vector<QuadFragment> mFragmentBuf;
+			vector<vector<Vec3f_SSE>> mTiledShadingResultBuf;
 
 			vector<Tile> mTiles;
 			Vector2i mTileDim;
@@ -56,7 +57,7 @@ namespace EDX
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
 			void Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf);
 			void TiledRasterization();
-			void RasterizeTile(Tile& tile);
+			void RasterizeTile(Tile& tile, uint tileIdx);
 			void RasterizeTile_Hierarchical(Tile& tile);
 			void FragmentProcessing();
 		};

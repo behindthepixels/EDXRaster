@@ -85,6 +85,14 @@ namespace EDX
 					(B2 * (p.x - v2.x) + C2 * (p.y - v2.y) + TopLeftEdge(v2, v0))) >= 0;
 			}
 
+			__forceinline float GetDepth(const ProjectedVertex& v0,
+				const ProjectedVertex& v1,
+				const ProjectedVertex& v2)
+			{
+				const float lambda2 = 1.0f - lambda0 - lambda1;
+				return lambda0 * v0.projectedPos.z + lambda1 * v1.projectedPos.z + lambda2 * v2.projectedPos.z;
+			}
+
 			__forceinline void CalcBarycentricCoord(const int x, const int y)
 			{
 				lambda0 = (B1 * (x - v2.x) + C1 * (y - v2.y)) * invDet;
@@ -163,6 +171,15 @@ namespace EDX
 			__forceinline bool TrivialReject(const Vec2i_SSE& p) const
 			{
 				return SSE::Any((EdgeFunc0(p) & EdgeFunc1(p) & EdgeFunc2(p)) < IntSSE(Math::EDX_ZERO));
+			}
+
+			__forceinline FloatSSE GetDepth(const ProjectedVertex& v0,
+				const ProjectedVertex& v1,
+				const ProjectedVertex& v2)
+			{
+				const auto One = FloatSSE(Math::EDX_ONE);
+				const FloatSSE lambda2 = One - lambda0 - lambda1;
+				return lambda0 * v0.projectedPos.z + lambda1 * v1.projectedPos.z + lambda2 * v2.projectedPos.z;
 			}
 
 			__forceinline void CalcBarycentricCoord(const IntSSE& x, const IntSSE& y)

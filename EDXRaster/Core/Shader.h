@@ -77,18 +77,6 @@ namespace EDX
 				normal = b0 * v0.normal + b1 * v1.normal + b2 * v2.normal;
 				texCoord = b0 * v0.texCoord + b1 * v1.texCoord + b2 * v2.texCoord;
 			}
-
-			float GetDepth(const ProjectedVertex& v0,
-				const ProjectedVertex& v1,
-				const ProjectedVertex& v2,
-				float b0,
-				float b1)
-			{
-				float b2 = 1.0f - b0 - b1;
-				depth = b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
-
-				return depth;
-			}
 		};
 
 		struct CoverageMask
@@ -124,13 +112,13 @@ namespace EDX
 					SetBit(sampleOffset + 3);
 				}
 			}
-			inline int GetBit(int i)
+			inline int GetBit(int i) const
 			{
 				int id = i >> 5;
 				int shift = i & 31;
 				return bits[id] & (1 << shift);
 			}
-			inline int Merge()
+			inline int Merge() const
 			{
 				return bits[0] | bits[1] | bits[2] | bits[3];
 			}
@@ -138,13 +126,14 @@ namespace EDX
 
 		struct QuadFragment
 		{
-			Vec3f_SSE shadingResult;
+			FloatSSE lambda0, lambda1;
+			CoverageMask coverageMask;
 
+			unsigned short x, y;
 			int vId0 : 24, vId1 : 24, vId2 : 24;
 			int textureId : 24;
-			FloatSSE lambda0, lambda1;
-			unsigned short x, y;
-			CoverageMask coverageMask;
+			int tileId : 24;
+			uint intraTileIdx;
 
 			void Interpolate(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,
@@ -168,18 +157,6 @@ namespace EDX
 				position = b0 * Vec3f_SSE(v0.position.x, v0.position.y, v0.position.z) + b1 * Vec3f_SSE(v1.position.x, v1.position.y, v1.position.z) + b2 * Vec3f_SSE(v2.position.x, v2.position.y, v2.position.z);
 				normal = b0 * Vec3f_SSE(v0.normal.x, v0.normal.y, v0.normal.z) + b1 * Vec3f_SSE(v1.normal.x, v1.normal.y, v1.normal.z) + b2 * Vec3f_SSE(v2.normal.x, v2.normal.y, v2.normal.z);
 				texCoord = b0 * Vec2f_SSE(v0.texCoord.x, v0.texCoord.y) + b1 * Vec2f_SSE(v1.texCoord.x, v1.texCoord.y) + b2 * Vec2f_SSE(v2.texCoord.x, v2.texCoord.y);
-			}
-
-			FloatSSE GetDepth(const ProjectedVertex& v0,
-				const ProjectedVertex& v1,
-				const ProjectedVertex& v2,
-				const uint sId,
-				const FloatSSE& b0,
-				const FloatSSE& b1)
-			{
-				const auto One = FloatSSE(Math::EDX_ONE);
-				FloatSSE b2 = One - b0 - b1;
-				return b0 * v0.projectedPos.z + b1 * v1.projectedPos.z + b2 * v2.projectedPos.z;
 			}
 		};
 
@@ -217,7 +194,7 @@ namespace EDX
 		{
 		public:
 			virtual ~QuadPixelShader() {}
-			virtual void Shade(QuadFragment& fragIn,
+			virtual Vec3f_SSE Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -229,7 +206,7 @@ namespace EDX
 		class QuadLambertianPixelShader : public QuadPixelShader
 		{
 		public:
-			void Shade(QuadFragment& fragIn,
+			Vec3f_SSE Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -246,14 +223,14 @@ namespace EDX
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				fragIn.shadingResult = diffuse;
+				return diffuse;
 			}
 		};
 
 		class QuadLambertianAlbedoPixelShader : public QuadPixelShader
 		{
 		public:
-			void Shade(QuadFragment& fragIn,
+			Vec3f_SSE Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -278,14 +255,14 @@ namespace EDX
 				}
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
 
-				fragIn.shadingResult = diffuse * quadAlbedo;
+				return diffuse * quadAlbedo;
 			}
 		};
 
 		class QuadBlinnPhongPixelShader : public QuadPixelShader
 		{
 		public:
-			void Shade(QuadFragment& fragIn,
+			Vec3f_SSE Shade(QuadFragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -312,12 +289,12 @@ namespace EDX
 				halfVec *= w;
 
 				FloatSSE specularAmount = Math::Dot(_normal, halfVec);
-				specularAmount = FloatSSE(Math::Pow(specularAmount[0], max(200.0f, 0.0001f)) * 2,
-					Math::Pow(specularAmount[1], max(200.0f, 0.0001f)) * 2,
-					Math::Pow(specularAmount[2], max(200.0f, 0.0001f)) * 2,
-					Math::Pow(specularAmount[3], max(200.0f, 0.0001f)) * 2);
+				specularAmount = FloatSSE(Math::Pow(specularAmount[0], 200.0f),
+					Math::Pow(specularAmount[1], 200.0f),
+					Math::Pow(specularAmount[2], 200.0f),
+					Math::Pow(specularAmount[3], 200.0f)) * 2.0f;
 
-				fragIn.shadingResult = diffuse + specularAmount;
+				return diffuse + specularAmount;
 			}
 		};
 	}
