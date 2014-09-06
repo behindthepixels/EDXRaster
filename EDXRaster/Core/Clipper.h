@@ -2,7 +2,7 @@
 
 #include "EDXPrerequisites.h"
 
-#define CLIP_ALL_PLANES 0
+#define CLIP_ALL_PLANES 1
 
 namespace EDX
 {
