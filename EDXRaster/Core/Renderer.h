@@ -3,6 +3,7 @@
 #include "RenderState.h"
 #include "Shader.h"
 #include "RasterTriangle.h"
+#include "Rasterizer.h"
 #include "../Utils/InputBuffer.h"
 #include "Windows/Thread.h"
 #include "Memory/RefPtr.h"
@@ -12,21 +13,6 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
-		struct Tile
-		{
-			static const int SIZE_LOG_2 = 5;
-			static const int SIZE = 1 << SIZE_LOG_2;
-
-			Vector2i minCoord, maxCoord;
-			vector<uint> triangleIds;
-			vector<QuadFragment> fragmentBuf;
-
-			Tile(const Vector2i& min, const Vector2i& max)
-				: minCoord(min), maxCoord(max)
-			{
-			}
-		};
-
 		class Renderer
 		{
 		private:
@@ -58,7 +44,21 @@ namespace EDX
 			void Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf);
 			void TiledRasterization();
 			void RasterizeTile(Tile& tile, uint tileIdx);
-			void RasterizeTile_Hierarchical(Tile& tile);
+			void TrivialAcceptTriangle(Tile& tile, uint tileIdx, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri);
+			void RasterizeTile_Hierarchical(Tile& tile, uint tileIdx, const uint blockSize);
+			void CoarseRasterize(Tile& tile,
+				const uint tileIdx,
+				const Tile::TriangleRef& triRef,
+				const uint blockSize,
+				const Vector2i& blockMin,
+				const Vector2i& blockMax,
+				const RasterTriangle& tri);
+			void FineRasterize(Tile& tile,
+				const uint tileIdx,
+				const Tile::TriangleRef& triRef,
+				const Vector2i& blockMin,
+				const Vector2i& blockMax,
+				const RasterTriangle& tri);
 			void FragmentProcessing();
 		};
 

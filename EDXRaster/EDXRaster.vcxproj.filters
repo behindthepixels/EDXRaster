@@ -19,6 +19,9 @@
     <Filter Include="Source Files\Utils">
       <UniqueIdentifier>{5f304963-b1d5-4c7b-b148-6174a5131475}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\RasterizeAlgorithms">
+      <UniqueIdentifier>{76e6b936-d159-478a-8c34-afbe3e197f51}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\FrameBuffer.cpp">
