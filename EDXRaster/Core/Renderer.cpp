@@ -322,9 +322,12 @@ namespace EDX
 			{
 				for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
 				{
+					CoverageMask mask;
+					bool genFragment = false;
+					Vec2i_SSE pixelCenter = Vec2i_SSE(pixelCrd.x << 4, pixelCrd.y << 4) + centerOffset;
+
 					for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 					{
-						Vec2i_SSE pixelCenter = Vec2i_SSE(pixelCrd.x << 4, pixelCrd.y << 4) + centerOffset;
 
 						const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
 						Vec2i_SSE samplePos = pixelCenter + sampleOffset;
@@ -337,27 +340,30 @@ namespace EDX
 						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSIMD.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, BoolSSE(Constants::EDX_TRUE));
 						if (SSE::Any(zTest))
 						{
-							CoverageMask mask;
 							mask.SetBit(zTest, sampleId);
-
-							triSIMD.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
-
-							QuadFragment frag;
-							frag.vId0 = triSIMD.vId0;
-							frag.vId1 = triSIMD.vId1;
-							frag.vId2 = triSIMD.vId2;
-							frag.textureId = triSIMD.textureId;
-							frag.lambda0 = triSIMD.lambda0;
-							frag.lambda1 = triSIMD.lambda1;
-							frag.x = pixelCrd.x;
-							frag.y = pixelCrd.y;
-							frag.coverageMask = mask;
-
-							frag.tileId = tileIdx;
-							frag.intraTileIdx = tile.fragmentBuf.size();
-
-							tile.fragmentBuf.push_back(frag);
+							genFragment = true;
 						}
+					}
+
+					if (genFragment)
+					{
+						triSIMD.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
+
+						QuadFragment frag;
+						frag.vId0 = triSIMD.vId0;
+						frag.vId1 = triSIMD.vId1;
+						frag.vId2 = triSIMD.vId2;
+						frag.textureId = triSIMD.textureId;
+						frag.lambda0 = triSIMD.lambda0;
+						frag.lambda1 = triSIMD.lambda1;
+						frag.x = pixelCrd.x;
+						frag.y = pixelCrd.y;
+						frag.coverageMask = mask;
+
+						frag.tileId = tileIdx;
+						frag.intraTileIdx = tile.fragmentBuf.size();
+
+						tile.fragmentBuf.push_back(frag);
 					}
 				}
 			}
