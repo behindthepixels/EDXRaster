@@ -402,7 +402,7 @@ namespace EDX
 					}
 
 					//FineRasterize(tile, tileIdx, triRef, tile.minCoord, tile.maxCoord, tri);
-					CoarseRasterize(tile, tileIdx, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
+					CoarseRasterize(tile, tileIdx, triRef, blockSize, tile.minCoord, tile.maxCoord, tri);
 				}
 			}
 
