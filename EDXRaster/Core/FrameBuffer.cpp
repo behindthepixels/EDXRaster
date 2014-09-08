@@ -65,7 +65,7 @@ namespace EDX
 				return;
 
 			const float invSampleCount = 1.0f / float(mSampleCount);
-			parallel_for(0, (int)mColorBuffer.LinearSize() - 1, [&](int i)
+			parallel_for(0, (int)mColorBuffer.LinearSize(), [&](int i)
 			{
 				const Vector2i idx = mColorBuffer.Index(i);
 				Color c = 0;
