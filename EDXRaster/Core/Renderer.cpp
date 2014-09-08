@@ -43,7 +43,9 @@ namespace EDX
 				}
 			}
 
-			FrameCount = 0;
+			mFrameCount = 0;
+
+			mNumCores = DetectCPUCount();
 		}
 
 		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
@@ -57,7 +59,7 @@ namespace EDX
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
-			FrameCount++;
+			mFrameCount++;
 			mpFrameBuffer->Clear();
 			mGlobalRenderStates.mTextureSlots = mesh.GetTextures();
 
@@ -94,72 +96,84 @@ namespace EDX
 			// Binning triangles
 			for (auto i = 0; i < mTiles.size(); i++)
 			{
-				mTiles[i].triangleRefs.clear();
+				for (auto c = 0; c < mNumCores; c++)
+					mTiles[i].triangleRefs[c].clear();
+
 				mTiles[i].fragmentBuf.clear();
 			}
 
 			const int Shift = Tile::SIZE_LOG_2 + 4;
-			for (auto i = 0; i < mRasterTriangleBuf.size(); i++)
+			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				const RasterTriangle& tri = mRasterTriangleBuf[i];
+				auto interval = (mRasterTriangleBuf.size() + mNumCores - 1) / mNumCores;
+				auto startIdx = coreId * interval;
+				auto endIdx = (coreId + 1) * interval;
 
-				int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> Shift);
-				int maxX = Math::Min(mTileDim.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
-				int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> Shift);
-				int maxY = Math::Min(mTileDim.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> Shift);
-
-				if (maxX - minX <= 2 && maxY - minY <= 2)
+				for (auto i = startIdx; i < endIdx; i++)
 				{
-					for (auto y = minY; y <= maxY; y++)
+					if (i >= mRasterTriangleBuf.size())
+						return;
+
+					const RasterTriangle& tri = mRasterTriangleBuf[i];
+
+					int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> Shift);
+					int maxX = Math::Min(mTileDim.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
+					int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> Shift);
+					int maxY = Math::Min(mTileDim.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> Shift);
+
+					if (maxX - minX <= 2 && maxY - minY <= 2)
 					{
-						for (auto x = minX; x <= maxX; x++)
+						for (auto y = minY; y <= maxY; y++)
 						{
-							mTiles[y * mTileDim.x + x].triangleRefs.push_back(Tile::TriangleRef(i));
+							for (auto x = minX; x <= maxX; x++)
+							{
+								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i));
+							}
+						}
+					}
+					else
+					{
+						for (auto y = minY; y <= maxY; y++)
+						{
+							for (auto x = minX; x <= maxX; x++)
+							{
+								Vector2i pixelBase = Vector2i(x, y);
+
+								const Vector2i rejCornerOffset0 = Vector2i(tri.rejectCorner0 % 2, tri.rejectCorner0 / 2);
+								const Vector2i rejCornerOffset1 = Vector2i(tri.rejectCorner1 % 2, tri.rejectCorner1 / 2);
+								const Vector2i rejCornerOffset2 = Vector2i(tri.rejectCorner2 % 2, tri.rejectCorner2 / 2);
+
+								const Vector2i rejCorner0 = Vector2i((pixelBase.x + rejCornerOffset0.x) << Shift,
+									(pixelBase.y + rejCornerOffset0.y) << Shift);
+								const Vector2i rejCorner1 = Vector2i((pixelBase.x + rejCornerOffset1.x) << Shift,
+									(pixelBase.y + rejCornerOffset1.y) << Shift);
+								const Vector2i rejCorner2 = Vector2i((pixelBase.x + rejCornerOffset2.x) << Shift,
+									(pixelBase.y + rejCornerOffset2.y) << Shift);
+
+								if (tri.EdgeFunc0(rejCorner0) < 0 || tri.EdgeFunc1(rejCorner1) < 0 || tri.EdgeFunc2(rejCorner2) < 0)
+									continue;
+
+
+								const Vector2i acptCornerOffset0 = Vector2i(tri.acceptCorner0 % 2, tri.acceptCorner0 / 2);
+								const Vector2i acptCornerOffset1 = Vector2i(tri.acceptCorner1 % 2, tri.acceptCorner1 / 2);
+								const Vector2i acptCornerOffset2 = Vector2i(tri.acceptCorner2 % 2, tri.acceptCorner2 / 2);
+
+								const Vector2i acptCorner0 = Vector2i((pixelBase.x + acptCornerOffset0.x) << Shift,
+									(pixelBase.y + acptCornerOffset0.y) << Shift);
+								const Vector2i acptCorner1 = Vector2i((pixelBase.x + acptCornerOffset1.x) << Shift,
+									(pixelBase.y + acptCornerOffset1.y) << Shift);
+								const Vector2i acptCorner2 = Vector2i((pixelBase.x + acptCornerOffset2.x) << Shift,
+									(pixelBase.y + acptCornerOffset2.y) << Shift);
+
+								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i,
+									tri.EdgeFunc0(acptCorner0) >= 0,
+									tri.EdgeFunc1(acptCorner1) >= 0,
+									tri.EdgeFunc2(acptCorner2) >= 0));
+							}
 						}
 					}
 				}
-				else
-				{
-					for (auto y = minY; y <= maxY; y++)
-					{
-						for (auto x = minX; x <= maxX; x++)
-						{
-							Vector2i pixelBase = Vector2i(x, y);
-
-							const Vector2i rejCornerOffset0 = Vector2i(tri.rejectCorner0 % 2, tri.rejectCorner0 / 2);
-							const Vector2i rejCornerOffset1 = Vector2i(tri.rejectCorner1 % 2, tri.rejectCorner1 / 2);
-							const Vector2i rejCornerOffset2 = Vector2i(tri.rejectCorner2 % 2, tri.rejectCorner2 / 2);
-
-							const Vector2i rejCorner0 = Vector2i((pixelBase.x + rejCornerOffset0.x) << Shift,
-								(pixelBase.y + rejCornerOffset0.y) << Shift);
-							const Vector2i rejCorner1 = Vector2i((pixelBase.x + rejCornerOffset1.x) << Shift,
-								(pixelBase.y + rejCornerOffset1.y) << Shift);
-							const Vector2i rejCorner2 = Vector2i((pixelBase.x + rejCornerOffset2.x) << Shift,
-								(pixelBase.y + rejCornerOffset2.y) << Shift);
-
-							if (tri.EdgeFunc0(rejCorner0) < 0 || tri.EdgeFunc1(rejCorner1) < 0 || tri.EdgeFunc2(rejCorner2) < 0)
-								continue;
-
-
-							const Vector2i acptCornerOffset0 = Vector2i(tri.acceptCorner0 % 2, tri.acceptCorner0 / 2);
-							const Vector2i acptCornerOffset1 = Vector2i(tri.acceptCorner1 % 2, tri.acceptCorner1 / 2);
-							const Vector2i acptCornerOffset2 = Vector2i(tri.acceptCorner2 % 2, tri.acceptCorner2 / 2);
-
-							const Vector2i acptCorner0 = Vector2i((pixelBase.x + acptCornerOffset0.x) << Shift,
-								(pixelBase.y + acptCornerOffset0.y) << Shift);
-							const Vector2i acptCorner1 = Vector2i((pixelBase.x + acptCornerOffset1.x) << Shift,
-								(pixelBase.y + acptCornerOffset1.y) << Shift);
-							const Vector2i acptCorner2 = Vector2i((pixelBase.x + acptCornerOffset2.x) << Shift,
-								(pixelBase.y + acptCornerOffset2.y) << Shift);
-
-							mTiles[y * mTileDim.x + x].triangleRefs.push_back(Tile::TriangleRef(i,
-								tri.EdgeFunc0(acptCorner0) >= 0,
-								tri.EdgeFunc1(acptCorner1) >= 0,
-								tri.EdgeFunc2(acptCorner2) >= 0));
-						}
-					}
-				}
-			}
+			});
 
 
 			//for (auto i = 0; i < mTiles.size(); i++)
@@ -185,117 +199,120 @@ namespace EDX
 
 			static const Vec2i_SSE centerOffset = Vec2i_SSE(IntSSE(8, 24, 8, 24), IntSSE(8, 8, 24, 24));
 
-			for (auto j = 0; j < tile.triangleRefs.size(); j++)
+			for (auto coreId = 0; coreId < mNumCores; coreId++)
 			{
-				const Tile::TriangleRef& triRef = tile.triangleRefs[j];
-				RasterTriangle& tri = mRasterTriangleBuf[triRef.triId];
-
-				if (triRef.trivialAccept)
+				for (auto j = 0; j < tile.triangleRefs[coreId].size(); j++)
 				{
-					TrivialAcceptTriangle(tile, tileIdx, tile.minCoord, tile.maxCoord, tri);
-					continue;
-				}
+					const Tile::TriangleRef& triRef = tile.triangleRefs[coreId][j];
+					RasterTriangle& tri = mRasterTriangleBuf[triRef.triId];
 
-				int minX = Math::Max(tile.minCoord.x, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
-				int maxX = Math::Min(tile.maxCoord.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
-				int minY = Math::Max(tile.minCoord.y, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
-				int maxY = Math::Min(tile.maxCoord.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> 4);
-				minX -= minX % 2;
-				minY -= minY % 2;
-
-				TriangleSIMD triSIMD;
-				triSIMD.Load(tri);
-
-				Vec2i_SSE pixelBase = Vec2i_SSE(minX << 4, minY << 4);
-				Vec2i_SSE pixelCenter = pixelBase + centerOffset;
-				IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSIMD.EdgeFunc0(pixelCenter);
-				IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSIMD.EdgeFunc1(pixelCenter);
-				IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSIMD.EdgeFunc2(pixelCenter);
-
-				Vector2i pixelCrd;
-				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
-				{
-					IntSSE edgeYBase0 = edgeVal0;
-					IntSSE edgeYBase1 = edgeVal1;
-					IntSSE edgeYBase2 = edgeVal2;
-
-					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+					if (triRef.trivialAccept)
 					{
-						pixelCenter = Vec2i_SSE(pixelCrd.x << 4, pixelCrd.y << 4) + centerOffset;
-						bool genFragment = false;
-						CoverageMask mask;
-						for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
+						TrivialAcceptTriangle(tile, tileIdx, tile.minCoord, tile.maxCoord, tri);
+						continue;
+					}
+
+					int minX = Math::Max(tile.minCoord.x, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
+					int maxX = Math::Min(tile.maxCoord.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
+					int minY = Math::Max(tile.minCoord.y, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
+					int maxY = Math::Min(tile.maxCoord.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> 4);
+					minX -= minX % 2;
+					minY -= minY % 2;
+
+					TriangleSSE triSSE;
+					triSSE.Load(tri);
+
+					Vec2i_SSE pixelBase = Vec2i_SSE(minX << 4, minY << 4);
+					Vec2i_SSE pixelCenter = pixelBase + centerOffset;
+					IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSSE.EdgeFunc0(pixelCenter);
+					IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSSE.EdgeFunc1(pixelCenter);
+					IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSSE.EdgeFunc2(pixelCenter);
+
+					Vector2i pixelCrd;
+					for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+					{
+						IntSSE edgeYBase0 = edgeVal0;
+						IntSSE edgeYBase1 = edgeVal1;
+						IntSSE edgeYBase2 = edgeVal2;
+
+						for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
 						{
-							const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
-							BoolSSE covered = BoolSSE(true, true, true, true);
-
-							if (sampleCount == 1)
+							pixelCenter = Vec2i_SSE(pixelCrd.x << 4, pixelCrd.y << 4) + centerOffset;
+							bool genFragment = false;
+							CoverageMask mask;
+							for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 							{
-								covered = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
-							}
-							else
-							{
-								IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
-								IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
-								IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
+								const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
+								BoolSSE covered = BoolSSE(true, true, true, true);
 
-								covered = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
-							}
-
-							if (SSE::Any(covered))
-							{
-								Vec2i_SSE samplePos = pixelCenter + sampleOffset;
-								triSIMD.CalcBarycentricCoord(samplePos.x, samplePos.y);
-
-								const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-								const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-								const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
-
-								BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSIMD.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
-								BoolSSE visible = zTest & covered;
-								if (SSE::Any(visible))
+								if (sampleCount == 1)
 								{
-									mask.SetBit(visible, sampleId);
-									genFragment = true;
+									covered = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
+								}
+								else
+								{
+									IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSSE.B0 + sampleOffset.y * triSSE.C0;
+									IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSSE.B1 + sampleOffset.y * triSSE.C1;
+									IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSSE.B2 + sampleOffset.y * triSSE.C2;
+
+									covered = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
+								}
+
+								if (SSE::Any(covered))
+								{
+									Vec2i_SSE samplePos = pixelCenter + sampleOffset;
+									triSSE.CalcBarycentricCoord(samplePos.x, samplePos.y);
+
+									const ProjectedVertex& v0 = mProjectedVertexBuf[triSSE.vId0];
+									const ProjectedVertex& v1 = mProjectedVertexBuf[triSSE.vId1];
+									const ProjectedVertex& v2 = mProjectedVertexBuf[triSSE.vId2];
+
+									BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
+									BoolSSE visible = zTest & covered;
+									if (SSE::Any(visible))
+									{
+										mask.SetBit(visible, sampleId);
+										genFragment = true;
+									}
 								}
 							}
-						}
 
-						if (genFragment)
-						{
-							triSIMD.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
+							if (genFragment)
+							{
+								triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
-							QuadFragment frag;
-							frag.vId0 = triSIMD.vId0;
-							frag.vId1 = triSIMD.vId1;
-							frag.vId2 = triSIMD.vId2;
-							frag.textureId = triSIMD.textureId;
-							frag.lambda0 = triSIMD.lambda0;
-							frag.lambda1 = triSIMD.lambda1;
-							frag.x = pixelCrd.x;
-							frag.y = pixelCrd.y;
-							frag.coverageMask = mask;
+								QuadFragment frag;
+								frag.vId0 = triSSE.vId0;
+								frag.vId1 = triSSE.vId1;
+								frag.vId2 = triSSE.vId2;
+								frag.textureId = triSSE.textureId;
+								frag.lambda0 = triSSE.lambda0;
+								frag.lambda1 = triSSE.lambda1;
+								frag.x = pixelCrd.x;
+								frag.y = pixelCrd.y;
+								frag.coverageMask = mask;
 
-							frag.tileId = tileIdx;
-							frag.intraTileIdx = tile.fragmentBuf.size();
+								frag.tileId = tileIdx;
+								frag.intraTileIdx = tile.fragmentBuf.size();
 
-							tile.fragmentBuf.push_back(frag);
+								tile.fragmentBuf.push_back(frag);
+							}
+
+							if (!triRef.acceptEdge0)
+								edgeVal0 += triSSE.stepB0;
+							if (!triRef.acceptEdge1)
+								edgeVal1 += triSSE.stepB1;
+							if (!triRef.acceptEdge2)
+								edgeVal2 += triSSE.stepB2;
 						}
 
 						if (!triRef.acceptEdge0)
-							edgeVal0 += triSIMD.stepB0;
+							edgeVal0 = edgeYBase0 + triSSE.stepC0;
 						if (!triRef.acceptEdge1)
-							edgeVal1 += triSIMD.stepB1;
+							edgeVal1 = edgeYBase1 + triSSE.stepC1;
 						if (!triRef.acceptEdge2)
-							edgeVal2 += triSIMD.stepB2;
+							edgeVal2 = edgeYBase2 + triSSE.stepC2;
 					}
-
-					if (!triRef.acceptEdge0)
-						edgeVal0 = edgeYBase0 + triSIMD.stepC0;
-					if (!triRef.acceptEdge1)
-						edgeVal1 = edgeYBase1 + triSIMD.stepC1;
-					if (!triRef.acceptEdge2)
-						edgeVal2 = edgeYBase2 + triSIMD.stepC2;
 				}
 			}
 		}
@@ -314,8 +331,8 @@ namespace EDX
 			minX -= minX % 2;
 			minY -= minY % 2;
 
-			TriangleSIMD triSIMD;
-			triSIMD.Load(tri);
+			TriangleSSE triSSE;
+			triSSE.Load(tri);
 
 			Vector2i pixelCrd;
 			for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
@@ -331,13 +348,13 @@ namespace EDX
 
 						const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
 						Vec2i_SSE samplePos = pixelCenter + sampleOffset;
-						triSIMD.CalcBarycentricCoord(samplePos.x, samplePos.y);
+						triSSE.CalcBarycentricCoord(samplePos.x, samplePos.y);
 
-						const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-						const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-						const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+						const ProjectedVertex& v0 = mProjectedVertexBuf[triSSE.vId0];
+						const ProjectedVertex& v1 = mProjectedVertexBuf[triSSE.vId1];
+						const ProjectedVertex& v2 = mProjectedVertexBuf[triSSE.vId2];
 
-						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSIMD.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, BoolSSE(Constants::EDX_TRUE));
+						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, BoolSSE(Constants::EDX_TRUE));
 						if (SSE::Any(zTest))
 						{
 							mask.SetBit(zTest, sampleId);
@@ -347,15 +364,15 @@ namespace EDX
 
 					if (genFragment)
 					{
-						triSIMD.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
+						triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
 						QuadFragment frag;
-						frag.vId0 = triSIMD.vId0;
-						frag.vId1 = triSIMD.vId1;
-						frag.vId2 = triSIMD.vId2;
-						frag.textureId = triSIMD.textureId;
-						frag.lambda0 = triSIMD.lambda0;
-						frag.lambda1 = triSIMD.lambda1;
+						frag.vId0 = triSSE.vId0;
+						frag.vId1 = triSSE.vId1;
+						frag.vId2 = triSSE.vId2;
+						frag.textureId = triSSE.textureId;
+						frag.lambda0 = triSSE.lambda0;
+						frag.lambda1 = triSSE.lambda1;
 						frag.x = pixelCrd.x;
 						frag.y = pixelCrd.y;
 						frag.coverageMask = mask;
@@ -371,19 +388,22 @@ namespace EDX
 
 		void Renderer::RasterizeTile_Hierarchical(Tile& tile, uint tileIdx, const uint blockSize)
 		{
-			for (auto j = 0; j < tile.triangleRefs.size(); j++)
+			for (auto coreId = 0; coreId < mNumCores; coreId++)
 			{
-				const Tile::TriangleRef& triRef = tile.triangleRefs[j];
-				RasterTriangle& tri = mRasterTriangleBuf[triRef.triId];
-
-				if (triRef.trivialAccept)
+				for (auto j = 0; j < tile.triangleRefs[coreId].size(); j++)
 				{
-					TrivialAcceptTriangle(tile, tileIdx, tile.minCoord, tile.maxCoord, tri);
-					continue;
-				}
+					const Tile::TriangleRef& triRef = tile.triangleRefs[coreId][j];
+					RasterTriangle& tri = mRasterTriangleBuf[triRef.triId];
 
-				//FineRasterize(tile, tileIdx, triRef, tile.minCoord, tile.maxCoord, tri);
-				CoarseRasterize(tile, tileIdx, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
+					if (triRef.trivialAccept)
+					{
+						TrivialAcceptTriangle(tile, tileIdx, tile.minCoord, tile.maxCoord, tri);
+						continue;
+					}
+
+					//FineRasterize(tile, tileIdx, triRef, tile.minCoord, tile.maxCoord, tri);
+					CoarseRasterize(tile, tileIdx, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
+				}
 			}
 
 		}
@@ -485,14 +505,14 @@ namespace EDX
 			if (maxX < minX || maxY < minY)
 				return;
 
-			TriangleSIMD triSIMD;
-			triSIMD.Load(tri);
+			TriangleSSE triSSE;
+			triSSE.Load(tri);
 
 			Vec2i_SSE pixelBase = Vec2i_SSE(minX << 4, minY << 4);
 			Vec2i_SSE pixelCenter = pixelBase + centerOffset;
-			IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSIMD.EdgeFunc0(pixelCenter);
-			IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSIMD.EdgeFunc1(pixelCenter);
-			IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSIMD.EdgeFunc2(pixelCenter);
+			IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSSE.EdgeFunc0(pixelCenter);
+			IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSSE.EdgeFunc1(pixelCenter);
+			IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSSE.EdgeFunc2(pixelCenter);
 
 			Vector2i pixelCrd;
 			for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
@@ -517,9 +537,9 @@ namespace EDX
 						}
 						else
 						{
-							IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
-							IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
-							IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
+							IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSSE.B0 + sampleOffset.y * triSSE.C0;
+							IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSSE.B1 + sampleOffset.y * triSSE.C1;
+							IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSSE.B2 + sampleOffset.y * triSSE.C2;
 
 							covered = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
 						}
@@ -527,13 +547,13 @@ namespace EDX
 						if (SSE::Any(covered))
 						{
 							Vec2i_SSE samplePos = pixelCenter + sampleOffset;
-							triSIMD.CalcBarycentricCoord(samplePos.x, samplePos.y);
+							triSSE.CalcBarycentricCoord(samplePos.x, samplePos.y);
 
-							const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-							const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-							const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+							const ProjectedVertex& v0 = mProjectedVertexBuf[triSSE.vId0];
+							const ProjectedVertex& v1 = mProjectedVertexBuf[triSSE.vId1];
+							const ProjectedVertex& v2 = mProjectedVertexBuf[triSSE.vId2];
 
-							BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSIMD.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
+							BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
 							BoolSSE visible = zTest & covered;
 							if (SSE::Any(visible))
 							{
@@ -545,15 +565,15 @@ namespace EDX
 
 					if (genFragment)
 					{
-						triSIMD.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
+						triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
 						QuadFragment frag;
-						frag.vId0 = triSIMD.vId0;
-						frag.vId1 = triSIMD.vId1;
-						frag.vId2 = triSIMD.vId2;
-						frag.textureId = triSIMD.textureId;
-						frag.lambda0 = triSIMD.lambda0;
-						frag.lambda1 = triSIMD.lambda1;
+						frag.vId0 = triSSE.vId0;
+						frag.vId1 = triSSE.vId1;
+						frag.vId2 = triSSE.vId2;
+						frag.textureId = triSSE.textureId;
+						frag.lambda0 = triSSE.lambda0;
+						frag.lambda1 = triSSE.lambda1;
 						frag.x = pixelCrd.x;
 						frag.y = pixelCrd.y;
 						frag.coverageMask = mask;
@@ -565,19 +585,19 @@ namespace EDX
 					}
 
 					if (!triRef.acceptEdge0)
-						edgeVal0 += triSIMD.stepB0;
+						edgeVal0 += triSSE.stepB0;
 					if (!triRef.acceptEdge1)
-						edgeVal1 += triSIMD.stepB1;
+						edgeVal1 += triSSE.stepB1;
 					if (!triRef.acceptEdge2)
-						edgeVal2 += triSIMD.stepB2;
+						edgeVal2 += triSSE.stepB2;
 				}
 
 				if (!triRef.acceptEdge0)
-					edgeVal0 = edgeYBase0 + triSIMD.stepC0;
+					edgeVal0 = edgeYBase0 + triSSE.stepC0;
 				if (!triRef.acceptEdge1)
-					edgeVal1 = edgeYBase1 + triSIMD.stepC1;
+					edgeVal1 = edgeYBase1 + triSSE.stepC1;
 				if (!triRef.acceptEdge2)
-					edgeVal2 = edgeYBase2 + triSIMD.stepC2;
+					edgeVal2 = edgeYBase2 + triSSE.stepC2;
 			}
 		}
 

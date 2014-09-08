@@ -30,7 +30,8 @@ namespace EDX
 			vector<Tile> mTiles;
 			Vector2i mTileDim;
 
-			int FrameCount;
+			int mNumCores;
+			int mFrameCount;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);

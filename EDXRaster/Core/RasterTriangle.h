@@ -253,7 +253,7 @@ namespace EDX
 			}
 		};
 
-		struct TriangleSIMD
+		struct TriangleSSE
 		{
 			Vec2i_SSE v0, v1, v2;
 			IntSSE B0, C0, B1, C1, B2, C2;

@@ -30,7 +30,7 @@ namespace EDX
 			};
 
 			Vector2i minCoord, maxCoord;
-			vector<TriangleRef> triangleRefs;
+			vector<TriangleRef> triangleRefs[12];
 			vector<QuadFragment> fragmentBuf;
 
 			Tile(const Vector2i& min, const Vector2i& max)
@@ -79,14 +79,14 @@ namespace EDX
 				if (maxX < minX || maxY < minY)
 					return;
 
-				TriangleSIMD triSIMD;
-				triSIMD.Load(tri);
+				TriangleSSE triSSE;
+				triSSE.Load(tri);
 
 				Vec2i_SSE pixelBase = Vec2i_SSE(minX << 4, minY << 4);
 				Vec2i_SSE pixelCenter = pixelBase + centerOffset;
-				IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSIMD.EdgeFunc0(pixelCenter);
-				IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSIMD.EdgeFunc1(pixelCenter);
-				IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSIMD.EdgeFunc2(pixelCenter);
+				IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSSE.EdgeFunc0(pixelCenter);
+				IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSSE.EdgeFunc1(pixelCenter);
+				IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSSE.EdgeFunc2(pixelCenter);
 
 				Vector2i pixelCrd;
 				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
@@ -111,9 +111,9 @@ namespace EDX
 							}
 							else
 							{
-								IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSIMD.B0 + sampleOffset.y * triSIMD.C0;
-								IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSIMD.B1 + sampleOffset.y * triSIMD.C1;
-								IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSIMD.B2 + sampleOffset.y * triSIMD.C2;
+								IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSSE.B0 + sampleOffset.y * triSSE.C0;
+								IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSSE.B1 + sampleOffset.y * triSSE.C1;
+								IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSSE.B2 + sampleOffset.y * triSSE.C2;
 
 								covered = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
 							}
@@ -121,13 +121,13 @@ namespace EDX
 							if (SSE::Any(covered))
 							{
 								Vec2i_SSE samplePos = pixelCenter + sampleOffset;
-								triSIMD.CalcBarycentricCoord(samplePos.x, samplePos.y);
+								triSSE.CalcBarycentricCoord(samplePos.x, samplePos.y);
 
-								const ProjectedVertex& v0 = mProjectedVertexBuf[triSIMD.vId0];
-								const ProjectedVertex& v1 = mProjectedVertexBuf[triSIMD.vId1];
-								const ProjectedVertex& v2 = mProjectedVertexBuf[triSIMD.vId2];
+								const ProjectedVertex& v0 = mProjectedVertexBuf[triSSE.vId0];
+								const ProjectedVertex& v1 = mProjectedVertexBuf[triSSE.vId1];
+								const ProjectedVertex& v2 = mProjectedVertexBuf[triSSE.vId2];
 
-								BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSIMD.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
+								BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
 								BoolSSE visible = zTest & covered;
 								if (SSE::Any(visible))
 								{
@@ -139,15 +139,15 @@ namespace EDX
 
 						if (genFragment)
 						{
-							triSIMD.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
+							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
 							QuadFragment frag;
-							frag.vId0 = triSIMD.vId0;
-							frag.vId1 = triSIMD.vId1;
-							frag.vId2 = triSIMD.vId2;
-							frag.textureId = triSIMD.textureId;
-							frag.lambda0 = triSIMD.lambda0;
-							frag.lambda1 = triSIMD.lambda1;
+							frag.vId0 = triSSE.vId0;
+							frag.vId1 = triSSE.vId1;
+							frag.vId2 = triSSE.vId2;
+							frag.textureId = triSSE.textureId;
+							frag.lambda0 = triSSE.lambda0;
+							frag.lambda1 = triSSE.lambda1;
 							frag.x = pixelCrd.x;
 							frag.y = pixelCrd.y;
 							frag.coverageMask = mask;
@@ -159,19 +159,19 @@ namespace EDX
 						}
 
 						if (!triRef.acceptEdge0)
-							edgeVal0 += triSIMD.stepB0;
+							edgeVal0 += triSSE.stepB0;
 						if (!triRef.acceptEdge1)
-							edgeVal1 += triSIMD.stepB1;
+							edgeVal1 += triSSE.stepB1;
 						if (!triRef.acceptEdge2)
-							edgeVal2 += triSIMD.stepB2;
+							edgeVal2 += triSSE.stepB2;
 					}
 
 					if (!triRef.acceptEdge0)
-						edgeVal0 = edgeYBase0 + triSIMD.stepC0;
+						edgeVal0 = edgeYBase0 + triSSE.stepC0;
 					if (!triRef.acceptEdge1)
-						edgeVal1 = edgeYBase1 + triSIMD.stepC1;
+						edgeVal1 = edgeYBase1 + triSSE.stepC1;
 					if (!triRef.acceptEdge2)
-						edgeVal2 = edgeYBase2 + triSIMD.stepC2;
+						edgeVal2 = edgeYBase2 + triSSE.stepC2;
 				}
 			}
 		};
