@@ -32,7 +32,6 @@ namespace EDX
 
 
 			void CoarseRasterize(Tile& tile,
-				const uint tileIdx,
 				const Tile::TriangleRef& triRef,
 				const uint blockSize,
 				const Vector2i& blockMin,
@@ -100,29 +99,25 @@ namespace EDX
 					if (trivialAcceptMask[i] != 0)
 					{
 						if (mpFrameBuffer->GetSampleCount() == 1)
-							TrivialAcceptTriangle_SingleSample(tile, tileIdx, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
+							TrivialAcceptTriangle_SingleSample(tile, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
 						else
-							TrivialAcceptTriangle_MultiSample(tile, tileIdx, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
+							TrivialAcceptTriangle_MultiSample(tile, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
 						continue;
 					}
 
 					if (mpFrameBuffer->GetSampleCount() == 1)
-						FineRasterize_SingleSample(tile, tileIdx, triRef, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
+						FineRasterize_SingleSample(tile, triRef, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
 					else
-						FineRasterize_MultiSample(tile, tileIdx, triRef, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
+						FineRasterize_MultiSample(tile, triRef, Vector2i(minX, minY), Vector2i(maxX, maxY), tri);
 				}
 			}
 
 			__forceinline void FineRasterize_SingleSample(Tile& tile,
-				const uint tileIdx,
 				const Tile::TriangleRef& triRef,
 				const Vector2i& blockMin,
 				const Vector2i& blockMax,
 				const RasterTriangle& tri)
 			{
-				const uint sampleCount = mpFrameBuffer->GetSampleCount();
-				const uint multiSampleLevel = mpFrameBuffer->GetMultiSampleLevel();
-
 				int minX = Math::Max(blockMin.x, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> 4);
 				int maxX = Math::Min(blockMax.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> 4);
 				int minY = Math::Max(blockMin.y, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> 4);
@@ -178,7 +173,7 @@ namespace EDX
 								frag.y = pixelCrd.y;
 								frag.coverageMask.SetBit(visible, 0);
 
-								frag.tileId = tileIdx;
+								frag.tileId = tile.tileId;
 								frag.intraTileIdx = tile.fragmentBuf.size();
 
 								tile.fragmentBuf.push_back(frag);
@@ -204,7 +199,6 @@ namespace EDX
 			}
 
 			__forceinline void FineRasterize_MultiSample(Tile& tile,
-				const uint tileIdx,
 				const Tile::TriangleRef& triRef,
 				const Vector2i& blockMin,
 				const Vector2i& blockMax,
@@ -290,7 +284,7 @@ namespace EDX
 							frag.y = pixelCrd.y;
 							frag.coverageMask = mask;
 
-							frag.tileId = tileIdx;
+							frag.tileId = tile.tileId;
 							frag.intraTileIdx = tile.fragmentBuf.size();
 
 							tile.fragmentBuf.push_back(frag);
@@ -314,15 +308,15 @@ namespace EDX
 				}
 			}
 
-			__forceinline void TrivialAcceptTriangle(Tile& tile, uint tileIdx, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri)
+			__forceinline void TrivialAcceptTriangle(Tile& tile, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri)
 			{
 				if (mpFrameBuffer->GetSampleCount() == 1)
-					TrivialAcceptTriangle_SingleSample(tile, tileIdx, blockMin, blockMax, tri);
+					TrivialAcceptTriangle_SingleSample(tile, blockMin, blockMax, tri);
 				else
-					TrivialAcceptTriangle_MultiSample(tile, tileIdx, blockMin, blockMax, tri);
+					TrivialAcceptTriangle_MultiSample(tile, blockMin, blockMax, tri);
 			}
 
-			__forceinline void TrivialAcceptTriangle_SingleSample(Tile& tile, uint tileIdx, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri)
+			__forceinline void TrivialAcceptTriangle_SingleSample(Tile& tile, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri)
 			{
 				int minX = blockMin.x;
 				int maxX = blockMax.x - 1;
@@ -362,7 +356,7 @@ namespace EDX
 							frag.y = pixelCrd.y;
 							frag.coverageMask.SetBit(zTest, 0);
 
-							frag.tileId = tileIdx;
+							frag.tileId = tile.tileId;
 							frag.intraTileIdx = tile.fragmentBuf.size();
 
 							tile.fragmentBuf.push_back(frag);
@@ -371,7 +365,7 @@ namespace EDX
 				}
 			}
 
-			__forceinline void TrivialAcceptTriangle_MultiSample(Tile& tile, uint tileIdx, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri)
+			__forceinline void TrivialAcceptTriangle_MultiSample(Tile& tile, const Vector2i& blockMin, const Vector2i & blockMax, const RasterTriangle& tri)
 			{
 				const uint sampleCount = mpFrameBuffer->GetSampleCount();
 				const uint multiSampleLevel = mpFrameBuffer->GetMultiSampleLevel();
@@ -429,7 +423,7 @@ namespace EDX
 							frag.y = pixelCrd.y;
 							frag.coverageMask = mask;
 
-							frag.tileId = tileIdx;
+							frag.tileId = tile.tileId;
 							frag.intraTileIdx = tile.fragmentBuf.size();
 
 							tile.fragmentBuf.push_back(frag);

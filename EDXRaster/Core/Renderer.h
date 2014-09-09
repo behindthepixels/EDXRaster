@@ -45,7 +45,7 @@ namespace EDX
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
 			void Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf);
 			void TiledRasterization();
-			void RasterizeTile_Hierarchical(Tile& tile, uint tileIdx, const uint blockSize);
+			void RasterizeTile_Hierarchical(Tile& tile);
 			void FragmentProcessing();
 		};
 

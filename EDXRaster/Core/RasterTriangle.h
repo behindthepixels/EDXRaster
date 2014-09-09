@@ -261,8 +261,8 @@ namespace EDX
 			IntSSE stepB0, stepC0, stepB1, stepC1, stepB2, stepC2;
 
 			FloatSSE invDet;
-			uint vId0, vId1, vId2;
-			uint textureId;
+			int vId0 : 24, vId1 : 24, vId2 : 24;
+			int textureId : 24;
 
 			FloatSSE lambda0, lambda1;
 

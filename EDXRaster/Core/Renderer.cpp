@@ -34,6 +34,7 @@ namespace EDX
 			mpVertexShader = new DefaultVertexShader;
 			mpPixelShader = new QuadLambertianAlbedoPixelShader;
 
+			int tId = 0;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
 			{
 				for (auto j = 0; j < iScreenWidth; j += Tile::SIZE)
@@ -41,7 +42,7 @@ namespace EDX
 					auto maxX = Math::Min(j + Tile::SIZE, iScreenWidth);
 					auto maxY = Math::Min(i + Tile::SIZE, iScreenHeight);
 
-					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY)));
+					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY), tId++));
 				}
 			}
 
@@ -182,7 +183,7 @@ namespace EDX
 			//for (auto i = 0; i < mTiles.size(); i++)
 			parallel_for(0, (int)mTiles.size(), [&](int i)
 			{
-				RasterizeTile_Hierarchical(mTiles[i], i, Tile::SIZE);
+				RasterizeTile_Hierarchical(mTiles[i]);
 			});
 
 			mFragmentBuf.clear();
@@ -194,7 +195,7 @@ namespace EDX
 			}
 		}
 
-		void Renderer::RasterizeTile_Hierarchical(Tile& tile, uint tileIdx, const uint blockSize)
+		void Renderer::RasterizeTile_Hierarchical(Tile& tile)
 		{
 			for (auto coreId = 0; coreId < mNumCores; coreId++)
 			{
@@ -205,12 +206,12 @@ namespace EDX
 
 					if (triRef.trivialAccept)
 					{
-						mpRasterizer->TrivialAcceptTriangle(tile, tileIdx, tile.minCoord, tile.maxCoord, tri);
+						mpRasterizer->TrivialAcceptTriangle(tile, tile.minCoord, tile.maxCoord, tri);
 						continue;
 					}
 
-					//FineRasterize(tile, tileIdx, triRef, tile.minCoord, tile.maxCoord, tri);
-					mpRasterizer->CoarseRasterize(tile, tileIdx, triRef, blockSize, tile.minCoord, tile.maxCoord, tri);
+					//FineRasterize(tile, triRef, tile.minCoord, tile.maxCoord, tri);
+					mpRasterizer->CoarseRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
 				}
 			}
 
