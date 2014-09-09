@@ -24,7 +24,7 @@ namespace EDX
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, 2);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, 0);
 
 			if (!mpScene)
 			{

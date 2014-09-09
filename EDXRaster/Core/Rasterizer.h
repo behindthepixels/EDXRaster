@@ -143,13 +143,14 @@ namespace EDX
 
 				Vector2i pixelCrd;
 				IntSSE pixelBaseStep = IntSSE(32);
-				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2, pixelBase.y += pixelBaseStep)
 				{
 					IntSSE edgeYBase0 = edgeVal0;
 					IntSSE edgeYBase1 = edgeVal1;
 					IntSSE edgeYBase2 = edgeVal2;
 
-					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+					pixelBase.x = IntSSE(minX << 4);
+					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2, pixelBase.x += pixelBaseStep)
 					{
 						pixelCenter = pixelBase + mCenterOffset;
 						BoolSSE covered = (edgeVal0 | edgeVal1 | edgeVal2) >= IntSSE(Math::EDX_ZERO);
@@ -184,8 +185,6 @@ namespace EDX
 							}
 						}
 
-						pixelBase.x += pixelBaseStep;
-
 						if (!triRef.acceptEdge0)
 							edgeVal0 += triSSE.stepB0;
 						if (!triRef.acceptEdge1)
@@ -194,9 +193,6 @@ namespace EDX
 							edgeVal2 += triSSE.stepB2;
 
 					}
-
-					pixelBase.y += pixelBaseStep;
-					pixelBase.x = IntSSE(minX << 4);
 
 					if (!triRef.acceptEdge0)
 						edgeVal0 = edgeYBase0 + triSSE.stepC0;
@@ -237,13 +233,14 @@ namespace EDX
 
 				Vector2i pixelCrd;
 				IntSSE pixelBaseStep = IntSSE(32);
-				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2, pixelBase.y += pixelBaseStep)
 				{
 					IntSSE edgeYBase0 = edgeVal0;
 					IntSSE edgeYBase1 = edgeVal1;
 					IntSSE edgeYBase2 = edgeVal2;
 
-					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+					pixelBase.x = IntSSE(minX << 4);
+					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2, pixelBase.x += pixelBaseStep)
 					{
 						pixelCenter = pixelBase + mCenterOffset;
 						bool genFragment = false;
@@ -299,8 +296,6 @@ namespace EDX
 							tile.fragmentBuf.push_back(frag);
 						}
 
-						pixelBase.x += pixelBaseStep;
-
 						if (!triRef.acceptEdge0)
 							edgeVal0 += triSSE.stepB0;
 						if (!triRef.acceptEdge1)
@@ -309,9 +304,6 @@ namespace EDX
 							edgeVal2 += triSSE.stepB2;
 
 					}
-
-					pixelBase.y += pixelBaseStep;
-					pixelBase.x = IntSSE(minX << 4);
 
 					if (!triRef.acceptEdge0)
 						edgeVal0 = edgeYBase0 + triSSE.stepC0;
@@ -344,9 +336,10 @@ namespace EDX
 				Vector2i pixelCrd;
 				IntSSE pixelBaseStep = IntSSE(32);
 				Vec2i_SSE pixelBase = Vec2f_SSE(minX << 4, minY << 4);
-				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2, pixelBase.y += pixelBaseStep)
 				{
-					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+					pixelBase.x = IntSSE(minX << 4);
+					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2, pixelBase.x += pixelBaseStep)
 					{
 						Vec2i_SSE pixelCenter = pixelBase + mCenterOffset;
 						triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
@@ -374,12 +367,7 @@ namespace EDX
 
 							tile.fragmentBuf.push_back(frag);
 						}
-
-						pixelBase.x += pixelBaseStep;
 					}
-
-					pixelBase.y += pixelBaseStep;
-					pixelBase.x = IntSSE(minX << 4);
 				}
 			}
 
@@ -400,9 +388,10 @@ namespace EDX
 				Vector2i pixelCrd;
 				IntSSE pixelBaseStep = IntSSE(32);
 				Vec2i_SSE pixelBase = Vec2f_SSE(minX << 4, minY << 4);
-				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2)
+				for (pixelCrd.y = minY; pixelCrd.y <= maxY; pixelCrd.y += 2, pixelBase.y += pixelBaseStep)
 				{
-					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2)
+					pixelBase.x = IntSSE(minX << 4);
+					for (pixelCrd.x = minX; pixelCrd.x <= maxX; pixelCrd.x += 2, pixelBase.x += pixelBaseStep)
 					{
 						CoverageMask mask;
 						bool genFragment = false;
@@ -445,12 +434,7 @@ namespace EDX
 
 							tile.fragmentBuf.push_back(frag);
 						}
-
-						pixelBase.x += pixelBaseStep;
 					}
-
-					pixelBase.y += pixelBaseStep;
-					pixelBase.x = IntSSE(minX << 4);
 				}
 			}
 		};
