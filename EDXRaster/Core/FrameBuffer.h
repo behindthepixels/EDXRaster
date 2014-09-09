@@ -16,7 +16,9 @@ namespace EDX
 		private:
 			Array3C mColorBufferMS;
 			Array2C mColorBuffer;
-			Array3f mDepthBuffer;
+			Array<3, FloatSSE> mDepthBuffer;
+			vector<Array<3, FloatSSE>> mTiledDepthBuffer;
+			uint mTileDimX, mTileDimY;
 			uint mResX, mResY;
 
 			uint mSampleCount;
@@ -26,7 +28,7 @@ namespace EDX
 			static const int MultiSampleOffsets[][64];
 
 		public:
-			void Init(uint iWidth, uint iHeight, uint sampleCountLog2 = 0);
+			void Init(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2 = 0);
 			void SetPixel(const Color& c, const int x, const int y, const uint sId);
 			bool ZTest(const float d, const int x, const int y, const uint sId);
 			BoolSSE ZTestQuad(const FloatSSE& d, const int x, const int y, const uint sId, const BoolSSE& mask);

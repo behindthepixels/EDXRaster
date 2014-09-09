@@ -34,6 +34,7 @@
     <ClInclude Include="Core\RenderState.h" />
     <ClInclude Include="Core\Scene.h" />
     <ClInclude Include="Core\Shader.h" />
+    <ClInclude Include="Core\Tile.h" />
     <ClInclude Include="Utils\InputBuffer.h" />
     <ClInclude Include="Utils\Mesh.h" />
   </ItemGroup>

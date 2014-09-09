@@ -1,4 +1,5 @@
 #include "FrameBuffer.h"
+#include "Tile.h"
 #include "Math/EDXMath.h"
 
 #include <ppl.h>
@@ -8,7 +9,7 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
-		void FrameBuffer::Init(uint iWidth, uint iHeight, uint sampleCountLog2)
+		void FrameBuffer::Init(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2)
 		{
 			mMultiSampleLevel = sampleCountLog2;
 			mSampleCount = 1 << sampleCountLog2;
@@ -17,7 +18,14 @@ namespace EDX
 			mResY = iHeight;
 			mColorBufferMS.Init(Vector3i(mSampleCount, iWidth, iHeight));
 			mColorBuffer.Init(Vector2i(iWidth, iHeight));
-			mDepthBuffer.Init(Vector3i(mSampleCount, iWidth, iHeight));
+			mDepthBuffer.Init(Vector3i(mSampleCount, (iWidth + 1) >> 1, (iHeight + 1) >> 1));
+
+			mTileDimX = tileDim.x;
+			mTileDimY = tileDim.y;
+
+			mTiledDepthBuffer.resize(tileDim.x * tileDim.y);
+			for (auto& it : mTiledDepthBuffer)
+				it.Init(Vector3i(mSampleCount, Tile::SIZE >> 1, Tile::SIZE >> 1));
 		}
 
 		void FrameBuffer::SetPixel(const Color& c, const int x, const int y, const uint sId)
@@ -27,36 +35,28 @@ namespace EDX
 
 		bool FrameBuffer::ZTest(const float d, const int x, const int y, const uint sId)
 		{
-			float& currDepth = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y)];
-			if (d > currDepth)
-				return false;
+			//float& currDepth = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y)];
+			//if (d > currDepth)
+			//	return false;
 
-			currDepth = d;
+			//currDepth = d;
 			return true;
 		}
 
 		BoolSSE FrameBuffer::ZTestQuad(const FloatSSE& d, const int x, const int y, const uint sId, const BoolSSE& mask)
 		{
-			float& currDepth00 = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y)];
-			float& currDepth01 = mDepthBuffer[Vector3i(sId, x + 1, mResY - 1 - y)];
-			float& currDepth10 = mDepthBuffer[Vector3i(sId, x, mResY - 1 - y - 1)];
-			float& currDepth11 = mDepthBuffer[Vector3i(sId, x + 1, mResY - 1 - y - 1)];
+			const int tileX = x >> Tile::SIZE_LOG_2;
+			const int tileY = y >> Tile::SIZE_LOG_2;
+			Array<3, FloatSSE>& currTileDepths = mTiledDepthBuffer[tileY * mTileDimX + tileX];
 
-			bool lt00 = d[0] <= currDepth00;
-			bool lt01 = d[1] <= currDepth01;
-			bool lt10 = d[2] <= currDepth10;
-			bool lt11 = d[3] <= currDepth11;
+			const int intraTileX = x & (Tile::SIZE - 1);
+			const int intraTileY = y & (Tile::SIZE - 1);
+			FloatSSE& currDepth = currTileDepths[Vector3i(sId, intraTileX >> 1, (Tile::SIZE - 1 - intraTileY) >> 1)];
 
-			if (lt00 && mask[0] != 0)
-				currDepth00 = d[0];
-			if (lt01 && mask[1] != 0)
-				currDepth01 = d[1];
-			if (lt10 && mask[2] != 0)
-				currDepth10 = d[2];
-			if (lt11 && mask[3] != 0)
-				currDepth11 = d[3];
+			BoolSSE ret = d <= currDepth;
+			currDepth = SSE::Select(ret & mask, d, currDepth);
 
-			return BoolSSE(lt00, lt01, lt10, lt11);
+			return ret;
 		}
 
 		void FrameBuffer::Resolve()
@@ -86,8 +86,14 @@ namespace EDX
 				mColorBufferMS.Clear();
 			}
 
-			for (auto i = 0; i < mDepthBuffer.LinearSize(); i++)
-				mDepthBuffer[i] = 1.0f;
+			int tileCount = mTileDimX * mTileDimY;
+			parallel_for(0, tileCount, [&](int i)
+			{
+				Array<3, FloatSSE>& currTileDepths = mTiledDepthBuffer[i];
+
+				for (auto j = 0; j < currTileDepths.LinearSize(); j++)
+					currTileDepths[j] = 1.0f;
+			});
 		}
 
 		const int FrameBuffer::MultiSampleOffsets[][64] =

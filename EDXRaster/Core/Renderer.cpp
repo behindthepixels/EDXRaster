@@ -16,11 +16,14 @@ namespace EDX
 	{
 		void Renderer::Initialize(uint iScreenWidth, uint iScreenHeight)
 		{
+			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
+			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
+
 			if (!mpFrameBuffer)
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, 0);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, 0);
 
 			if (!mpScene)
 			{
@@ -30,8 +33,6 @@ namespace EDX
 			mpVertexShader = new DefaultVertexShader;
 			mpPixelShader = new QuadLambertianAlbedoPixelShader;
 
-			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
-			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
 			{
 				for (auto j = 0; j < iScreenWidth; j += Tile::SIZE)
@@ -94,13 +95,13 @@ namespace EDX
 		void Renderer::TiledRasterization()
 		{
 			// Binning triangles
-			for (auto i = 0; i < mTiles.size(); i++)
+			parallel_for(0, (int)mTiles.size(), [&](int i)
 			{
 				for (auto c = 0; c < mNumCores; c++)
 					mTiles[i].triangleRefs[c].clear();
 
 				mTiles[i].fragmentBuf.clear();
-			}
+			});
 
 			const int Shift = Tile::SIZE_LOG_2 + 4;
 			parallel_for(0, mNumCores, [&](int coreId)
@@ -491,7 +492,7 @@ namespace EDX
 			const Vector2i& blockMax,
 			const RasterTriangle& tri)
 		{
-			static const Vec2i_SSE centerOffset = Vec2i_SSE(IntSSE(8, 24, 8, 24), IntSSE(8, 8, 24, 24));
+			const Vec2i_SSE centerOffset = Vec2i_SSE(IntSSE(8, 24, 8, 24), IntSSE(8, 8, 24, 24));
 			const uint sampleCount = mpFrameBuffer->GetSampleCount();
 			const uint multiSampleLevel = mpFrameBuffer->GetMultiSampleLevel();
 
