@@ -266,37 +266,28 @@ namespace EDX
 
 			FloatSSE lambda0, lambda1;
 
-			__forceinline void LoadCoords(const RasterTriangle& tri)
+			TriangleSSE(const RasterTriangle& tri)
+				: v0(tri.v0)
+				, v1(tri.v1)
+				, v2(tri.v2)
+				, B0(tri.B0)
+				, C0(tri.C0)
+				, B1(tri.B1)
+				, C1(tri.C1)
+				, B2(tri.B2)
+				, C2(tri.C2)
+				, invDet(tri.invDet)
+				, stepB0(2 * tri.stepB0)
+				, stepC0(2 * tri.stepC0)
+				, stepB1(2 * tri.stepB1)
+				, stepC1(2 * tri.stepC1)
+				, stepB2(2 * tri.stepB2)
+				, stepC2(2 * tri.stepC2)
+				, vId0(tri.vId0)
+				, vId1(tri.vId1)
+				, vId2(tri.vId2)
+				, textureId(tri.textureId)
 			{
-				v0 = tri.v0;
-				v1 = tri.v1;
-				v2 = tri.v2;
-
-				B0 = tri.B0;
-				C0 = tri.C0;
-				B1 = tri.B1;
-				C1 = tri.C1;
-				B2 = tri.B2;
-				C2 = tri.C2;
-			}
-
-			void Load(const RasterTriangle& tri)
-			{
-				LoadCoords(tri);
-
-				invDet = tri.invDet;
-
-				stepB0 = 2 * tri.stepB0;
-				stepC0 = 2 * tri.stepC0;
-				stepB1 = 2 * tri.stepB1;
-				stepC1 = 2 * tri.stepC1;
-				stepB2 = 2 * tri.stepB2;
-				stepC2 = 2 * tri.stepC2;
-
-				vId0 = tri.vId0;
-				vId1 = tri.vId1;
-				vId2 = tri.vId2;
-				textureId = tri.textureId;
 			}
 
 			__forceinline IntSSE TopLeftEdge(const Vec2i_SSE& v1, const Vec2i_SSE& v2) const
@@ -321,6 +312,7 @@ namespace EDX
 			{
 				return (EdgeFunc0(p) | EdgeFunc1(p) | EdgeFunc2(p)) >= IntSSE(Math::EDX_ZERO);
 			}
+
 			__forceinline bool TrivialReject(const Vec2i_SSE& p) const
 			{
 				return SSE::Any((EdgeFunc0(p) & EdgeFunc1(p) & EdgeFunc2(p)) < IntSSE(Math::EDX_ZERO));

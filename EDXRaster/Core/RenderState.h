@@ -23,7 +23,6 @@ namespace EDX
 
 			bool mBackFaceCull;
 
-
 			vector<RefPtr<Texture<Color>>> mTextureSlots;
 
 		public:

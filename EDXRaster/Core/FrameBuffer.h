@@ -16,7 +16,6 @@ namespace EDX
 		private:
 			Array3C mColorBufferMS;
 			Array2C mColorBuffer;
-			Array<3, FloatSSE> mDepthBuffer;
 			vector<Array<3, FloatSSE>> mTiledDepthBuffer;
 			uint mTileDimX, mTileDimY;
 			uint mResX, mResY;

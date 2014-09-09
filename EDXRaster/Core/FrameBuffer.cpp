@@ -18,7 +18,6 @@ namespace EDX
 			mResY = iHeight;
 			mColorBufferMS.Init(Vector3i(mSampleCount, iWidth, iHeight));
 			mColorBuffer.Init(Vector2i(iWidth, iHeight));
-			mDepthBuffer.Init(Vector3i(mSampleCount, (iWidth + 1) >> 1, (iHeight + 1) >> 1));
 
 			mTileDimX = tileDim.x;
 			mTileDimY = tileDim.y;

@@ -20,7 +20,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\FrameBuffer.cpp" />
-    <ClCompile Include="Core\Rasterizer.cpp" />
     <ClCompile Include="Core\Renderer.cpp" />
     <ClCompile Include="Core\Scene.cpp" />
     <ClCompile Include="Utils\Mesh.cpp" />
