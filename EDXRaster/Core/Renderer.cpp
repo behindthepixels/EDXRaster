@@ -32,7 +32,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadLambertianAlbedoPixelShader;
+			mpPixelShader = new QuadBlinnPhongPixelShader;
 
 			int tId = 0;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
@@ -235,7 +235,7 @@ namespace EDX
 
 				mTiledShadingResultBuf[frag.tileId][frag.intraTileIdx] = mpPixelShader->Shade(frag,
 					Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
-					Vector3(-1, 1, -1),
+					Vector3(1, 1, -1),
 					position,
 					normal,
 					texCoord,

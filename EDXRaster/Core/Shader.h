@@ -138,9 +138,9 @@ namespace EDX
 			CoverageMask coverageMask;
 
 			unsigned short x, y;
-			int vId0 : 24, vId1 : 24, vId2 : 24;
-			int textureId : 24;
-			int tileId : 24;
+			uint vId0, vId1, vId2;
+			uint textureId;
+			uint tileId;
 			uint intraTileIdx;
 
 			QuadFragment(const FloatSSE& l0,

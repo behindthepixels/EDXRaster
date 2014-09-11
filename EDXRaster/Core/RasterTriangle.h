@@ -15,8 +15,8 @@ namespace EDX
 			int stepB0, stepC0, stepB1, stepC1, stepB2, stepC2;
 
 			float invDet;
-			int vId0 : 24, vId1 : 24, vId2 : 24;
-			int textureId : 24;
+			uint vId0, vId1, vId2;
+			uint textureId;
 
 			uint rejectCorner0 : 8, rejectCorner1 : 8, rejectCorner2 : 8;
 			uint acceptCorner0 : 8, acceptCorner1 : 8, acceptCorner2 : 8;
@@ -261,8 +261,8 @@ namespace EDX
 			IntSSE stepB0, stepC0, stepB1, stepC1, stepB2, stepC2;
 
 			FloatSSE invDet;
-			int vId0 : 24, vId1 : 24, vId2 : 24;
-			int textureId : 24;
+			uint vId0, vId1, vId2;
+			uint textureId;
 
 			FloatSSE lambda0, lambda1;
 
