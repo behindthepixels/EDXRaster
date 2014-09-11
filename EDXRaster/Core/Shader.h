@@ -84,7 +84,15 @@ namespace EDX
 			int bits[4]; // For up to 32x MSAA coverage mask
 			inline CoverageMask()
 			{
-				bits[0] = 0; bits[1] = 0; bits[2] = 0; bits[3] = 0;
+				bits[0] = 0;
+				bits[1] = 0;
+				bits[2] = 0;
+				bits[3] = 0;
+			}
+			inline CoverageMask(const BoolSSE& mask, uint sampleId)
+				: CoverageMask()
+			{
+				SetBit(mask, sampleId);
 			}
 			inline void SetBit(int i)
 			{
@@ -134,6 +142,30 @@ namespace EDX
 			int textureId : 24;
 			int tileId : 24;
 			uint intraTileIdx;
+
+			QuadFragment(const FloatSSE& l0,
+				const FloatSSE& l1,
+				const int id0,
+				const int id1,
+				const int id2,
+				const int texId,
+				const Vector2i& pixelCoord,
+				const CoverageMask& mask,
+				const int tId,
+				const uint intraTId)
+				: lambda0(l0)
+				, lambda1(l1)
+				, vId0(id0)
+				, vId1(id1)
+				, vId2(id2)
+				, textureId(texId)
+				, x(pixelCoord.x)
+				, y(pixelCoord.y)
+				, coverageMask(mask)
+				, tileId(tId)
+				, intraTileIdx(intraTId)
+			{
+			}
 
 			void Interpolate(const ProjectedVertex& v0,
 				const ProjectedVertex& v1,

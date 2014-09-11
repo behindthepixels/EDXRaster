@@ -162,21 +162,16 @@ namespace EDX
 							BoolSSE visible = zTest & covered;
 							if (SSE::Any(visible))
 							{
-								QuadFragment frag;
-								frag.vId0 = triSSE.vId0;
-								frag.vId1 = triSSE.vId1;
-								frag.vId2 = triSSE.vId2;
-								frag.textureId = triSSE.textureId;
-								frag.lambda0 = triSSE.lambda0;
-								frag.lambda1 = triSSE.lambda1;
-								frag.x = pixelCrd.x;
-								frag.y = pixelCrd.y;
-								frag.coverageMask.SetBit(visible, 0);
-
-								frag.tileId = tile.tileId;
-								frag.intraTileIdx = tile.fragmentBuf.size();
-
-								tile.fragmentBuf.push_back(frag);
+								tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+									triSSE.lambda1,
+									triSSE.vId0,
+									triSSE.vId1,
+									triSSE.vId2,
+									triSSE.textureId,
+									pixelCrd,
+									CoverageMask(visible, 0),
+									tile.tileId,
+									tile.fragmentBuf.size()));
 							}
 						}
 
@@ -273,21 +268,16 @@ namespace EDX
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
-							QuadFragment frag;
-							frag.vId0 = triSSE.vId0;
-							frag.vId1 = triSSE.vId1;
-							frag.vId2 = triSSE.vId2;
-							frag.textureId = triSSE.textureId;
-							frag.lambda0 = triSSE.lambda0;
-							frag.lambda1 = triSSE.lambda1;
-							frag.x = pixelCrd.x;
-							frag.y = pixelCrd.y;
-							frag.coverageMask = mask;
-
-							frag.tileId = tile.tileId;
-							frag.intraTileIdx = tile.fragmentBuf.size();
-
-							tile.fragmentBuf.push_back(frag);
+							tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+								triSSE.lambda1,
+								triSSE.vId0,
+								triSSE.vId1,
+								triSSE.vId2,
+								triSSE.textureId,
+								pixelCrd,
+								mask,
+								tile.tileId,
+								tile.fragmentBuf.size()));
 						}
 
 						if (!triRef.acceptEdge0)
@@ -345,21 +335,16 @@ namespace EDX
 						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, 0, BoolSSE(Constants::EDX_TRUE));
 						if (SSE::Any(zTest))
 						{
-							QuadFragment frag;
-							frag.vId0 = triSSE.vId0;
-							frag.vId1 = triSSE.vId1;
-							frag.vId2 = triSSE.vId2;
-							frag.textureId = triSSE.textureId;
-							frag.lambda0 = triSSE.lambda0;
-							frag.lambda1 = triSSE.lambda1;
-							frag.x = pixelCrd.x;
-							frag.y = pixelCrd.y;
-							frag.coverageMask.SetBit(zTest, 0);
-
-							frag.tileId = tile.tileId;
-							frag.intraTileIdx = tile.fragmentBuf.size();
-
-							tile.fragmentBuf.push_back(frag);
+							tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+								triSSE.lambda1,
+								triSSE.vId0,
+								triSSE.vId1,
+								triSSE.vId2,
+								triSSE.textureId,
+								pixelCrd,
+								CoverageMask(zTest, 0),
+								tile.tileId,
+								tile.fragmentBuf.size()));
 						}
 					}
 				}
@@ -411,22 +396,16 @@ namespace EDX
 						if (genFragment)
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
-
-							QuadFragment frag;
-							frag.vId0 = triSSE.vId0;
-							frag.vId1 = triSSE.vId1;
-							frag.vId2 = triSSE.vId2;
-							frag.textureId = triSSE.textureId;
-							frag.lambda0 = triSSE.lambda0;
-							frag.lambda1 = triSSE.lambda1;
-							frag.x = pixelCrd.x;
-							frag.y = pixelCrd.y;
-							frag.coverageMask = mask;
-
-							frag.tileId = tile.tileId;
-							frag.intraTileIdx = tile.fragmentBuf.size();
-
-							tile.fragmentBuf.push_back(frag);
+							tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+								triSSE.lambda1,
+								triSSE.vId0,
+								triSSE.vId1,
+								triSSE.vId2,
+								triSSE.textureId,
+								pixelCrd,
+								mask,
+								tile.tileId,
+								tile.fragmentBuf.size()));
 						}
 					}
 				}
