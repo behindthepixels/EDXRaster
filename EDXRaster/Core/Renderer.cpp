@@ -32,7 +32,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadBlinnPhongPixelShader;
+			mpPixelShader = new QuadLambertianAlbedoPixelShader;
 
 			int tId = 0;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
