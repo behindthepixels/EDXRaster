@@ -19,7 +19,7 @@ namespace EDX
 			RefPtr<VertexBuffer<struct Vertex_PositionNormalTex>> mpVertexBuf;
 			RefPtr<IndexBuffer> mpIndexBuf;
 
-			vector<RefPtr<Texture<Color>>> mTextures;
+			vector<RefPtr<Texture2D<Color>>> mTextures;
 			vector<uint> mTexIdx;
 
 		public:
@@ -48,7 +48,7 @@ namespace EDX
 			{
 				return mpIndexBuf.Ptr();
 			}
-			const vector<RefPtr<Texture<Color>>>& GetTextures() const
+			const vector<RefPtr<Texture2D<Color>>>& GetTextures() const
 			{
 				return mTextures;
 			}

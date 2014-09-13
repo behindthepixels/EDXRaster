@@ -132,9 +132,9 @@ namespace EDX
 
 				Vec2i_SSE pixelBase = Vec2i_SSE(minX << 4, minY << 4);
 				Vec2i_SSE pixelCenter = pixelBase + mCenterOffset;
-				IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSSE.EdgeFunc0(pixelCenter);
-				IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSSE.EdgeFunc1(pixelCenter);
-				IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSSE.EdgeFunc2(pixelCenter);
+				IntSSE edgeVal0 = triSSE.EdgeFunc0(pixelCenter);
+				IntSSE edgeVal1 = triSSE.EdgeFunc1(pixelCenter);
+				IntSSE edgeVal2 = triSSE.EdgeFunc2(pixelCenter);
 
 				Vector2i pixelCrd;
 				IntSSE pixelBaseStep = IntSSE(32);
@@ -175,21 +175,15 @@ namespace EDX
 							}
 						}
 
-						if (!triRef.acceptEdge0)
-							edgeVal0 += triSSE.stepB0;
-						if (!triRef.acceptEdge1)
-							edgeVal1 += triSSE.stepB1;
-						if (!triRef.acceptEdge2)
-							edgeVal2 += triSSE.stepB2;
+						edgeVal0 += triSSE.stepB0;
+						edgeVal1 += triSSE.stepB1;
+						edgeVal2 += triSSE.stepB2;
 
 					}
 
-					if (!triRef.acceptEdge0)
-						edgeVal0 = edgeYBase0 + triSSE.stepC0;
-					if (!triRef.acceptEdge1)
-						edgeVal1 = edgeYBase1 + triSSE.stepC1;
-					if (!triRef.acceptEdge2)
-						edgeVal2 = edgeYBase2 + triSSE.stepC2;
+					edgeVal0 = edgeYBase0 + triSSE.stepC0;
+					edgeVal1 = edgeYBase1 + triSSE.stepC1;
+					edgeVal2 = edgeYBase2 + triSSE.stepC2;
 				}
 			}
 
@@ -216,9 +210,9 @@ namespace EDX
 
 				Vec2i_SSE pixelBase = Vec2i_SSE(minX << 4, minY << 4);
 				Vec2i_SSE pixelCenter = pixelBase + mCenterOffset;
-				IntSSE edgeVal0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : triSSE.EdgeFunc0(pixelCenter);
-				IntSSE edgeVal1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : triSSE.EdgeFunc1(pixelCenter);
-				IntSSE edgeVal2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : triSSE.EdgeFunc2(pixelCenter);
+				IntSSE edgeVal0 = triSSE.EdgeFunc0(pixelCenter);
+				IntSSE edgeVal1 = triSSE.EdgeFunc1(pixelCenter);
+				IntSSE edgeVal2 = triSSE.EdgeFunc2(pixelCenter);
 
 				Vector2i pixelCrd;
 				IntSSE pixelBaseStep = IntSSE(32);
@@ -280,21 +274,15 @@ namespace EDX
 								tile.fragmentBuf.size()));
 						}
 
-						if (!triRef.acceptEdge0)
-							edgeVal0 += triSSE.stepB0;
-						if (!triRef.acceptEdge1)
-							edgeVal1 += triSSE.stepB1;
-						if (!triRef.acceptEdge2)
-							edgeVal2 += triSSE.stepB2;
+						edgeVal0 += triSSE.stepB0;
+						edgeVal1 += triSSE.stepB1;
+						edgeVal2 += triSSE.stepB2;
 
 					}
 
-					if (!triRef.acceptEdge0)
-						edgeVal0 = edgeYBase0 + triSSE.stepC0;
-					if (!triRef.acceptEdge1)
-						edgeVal1 = edgeYBase1 + triSSE.stepC1;
-					if (!triRef.acceptEdge2)
-						edgeVal2 = edgeYBase2 + triSSE.stepC2;
+					edgeVal0 = edgeYBase0 + triSSE.stepC0;
+					edgeVal1 = edgeYBase1 + triSSE.stepC1;
+					edgeVal2 = edgeYBase2 + triSSE.stepC2;
 				}
 			}
 

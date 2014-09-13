@@ -26,7 +26,7 @@ namespace EDX
 				if (materialInfo[i].strTexturePath[0])
 					mTextures.push_back(new ImageTexture<Color, Color4b>(materialInfo[i].strTexturePath));
 				else
-					mTextures.push_back(new ConstantTexture<Color>(materialInfo[i].color));
+					mTextures.push_back(new ConstantTexture2D<Color>(materialInfo[i].color));
 			}
 			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
@@ -42,7 +42,7 @@ namespace EDX
 			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
 
-			mTextures.push_back(new ConstantTexture<Color>(0.9f * Color::WHITE));
+			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
 
@@ -59,7 +59,7 @@ namespace EDX
 			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
 			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
 
-			mTextures.push_back(new ConstantTexture<Color>(0.9f * Color::WHITE));
+			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
 	}
