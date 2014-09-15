@@ -19,6 +19,7 @@ namespace EDX
 			Matrix mRasterMatrix;
 
 			bool mBackFaceCull;
+			TextureFilter mTexFilter;
 
 			vector<RefPtr<Texture2D<Color>>> mTextureSlots;
 
@@ -28,6 +29,8 @@ namespace EDX
 			const Matrix& GetModelViewInvMatrix() const { return mModelViewInvMatrix; }
 			const Matrix& GetProjectMatrix() const { return mProjMatrix; }
 			const Matrix& GetRasterMatrix() const { return mRasterMatrix; }
+
+			const TextureFilter GetTextureFilter() const { return mTexFilter; }
 		};
 	}
 }

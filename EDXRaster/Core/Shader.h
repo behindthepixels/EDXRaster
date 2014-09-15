@@ -186,9 +186,15 @@ namespace EDX
 				b1 *= invB;
 				b2 = One - b0 - b1;
 
-				position = b0 * Vec3f_SSE(v0.position.x, v0.position.y, v0.position.z) + b1 * Vec3f_SSE(v1.position.x, v1.position.y, v1.position.z) + b2 * Vec3f_SSE(v2.position.x, v2.position.y, v2.position.z);
-				normal = b0 * Vec3f_SSE(v0.normal.x, v0.normal.y, v0.normal.z) + b1 * Vec3f_SSE(v1.normal.x, v1.normal.y, v1.normal.z) + b2 * Vec3f_SSE(v2.normal.x, v2.normal.y, v2.normal.z);
-				texCoord = b0 * Vec2f_SSE(v0.texCoord.x, v0.texCoord.y) + b1 * Vec2f_SSE(v1.texCoord.x, v1.texCoord.y) + b2 * Vec2f_SSE(v2.texCoord.x, v2.texCoord.y);
+				position = b0 * Vec3f_SSE(v0.position.x, v0.position.y, v0.position.z) +
+					b1 * Vec3f_SSE(v1.position.x, v1.position.y, v1.position.z) +
+					b2 * Vec3f_SSE(v2.position.x, v2.position.y, v2.position.z);
+				normal = b0 * Vec3f_SSE(v0.normal.x, v0.normal.y, v0.normal.z) +
+					b1 * Vec3f_SSE(v1.normal.x, v1.normal.y, v1.normal.z) +
+					b2 * Vec3f_SSE(v2.normal.x, v2.normal.y, v2.normal.z);
+				texCoord = b0 * Vec2f_SSE(v0.texCoord.x, v0.texCoord.y) +
+					b1 * Vec2f_SSE(v1.texCoord.x, v1.texCoord.y) +
+					b2 * Vec2f_SSE(v2.texCoord.x, v2.texCoord.y);
 			}
 		};
 
@@ -253,7 +259,7 @@ namespace EDX
 				FloatSSE diffuseAmount = Math::Dot(vecLightDir, _normal);
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
-				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 3 * Math::EDX_INV_PI;
 
 				return diffuse;
 			}
@@ -277,15 +283,21 @@ namespace EDX
 				FloatSSE diffuseAmount = Math::Dot(vecLightDir, _normal);
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
+
+				// Sample texture
+				const Vector2 differentials[2] = { Vector2(texCoord.u[1] - texCoord.u[0], texCoord.v[1] - texCoord.v[0]),
+					Vector2(texCoord.u[2] - texCoord.u[0], texCoord.v[2] - texCoord.v[0]) };
+
+				state.mTextureSlots[fragIn.textureId]->SetFilter(state.GetTextureFilter());
 				Vec3f_SSE quadAlbedo;
 				for (auto i = 0; i < 4; i++)
 				{
-					Color color = state.mTextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]));
+					Color color = state.mTextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]), differentials);
 					quadAlbedo.x[i] = color.r;
 					quadAlbedo.y[i] = color.g;
 					quadAlbedo.z[i] = color.b;
 				}
-				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 3 * Math::EDX_INV_PI;
 
 				return diffuse * quadAlbedo;
 			}
@@ -310,7 +322,7 @@ namespace EDX
 				BoolSSE mask = diffuseAmount < FloatSSE(Math::EDX_ZERO);
 				diffuseAmount = SSE::Select(mask, FloatSSE(Math::EDX_ZERO), diffuseAmount);
 
-				FloatSSE diffuse = (diffuseAmount + 0.2f) * 2 * Math::EDX_INV_PI;
+				FloatSSE diffuse = (diffuseAmount + 0.2f) * 3 * Math::EDX_INV_PI;
 
 				Vec3f_SSE eyeDir = Vec3f_SSE(eyePos) - position;
 				w = SSE::Rsqrt(Math::Dot(eyeDir, eyeDir));
@@ -324,7 +336,7 @@ namespace EDX
 				specularAmount = FloatSSE(Math::Pow(specularAmount[0], 200.0f),
 					Math::Pow(specularAmount[1], 200.0f),
 					Math::Pow(specularAmount[2], 200.0f),
-					Math::Pow(specularAmount[3], 200.0f)) * 2.0f;
+					Math::Pow(specularAmount[3], 200.0f)) * 3.0f;
 
 				return diffuse + specularAmount;
 			}

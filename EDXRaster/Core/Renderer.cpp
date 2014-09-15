@@ -59,6 +59,7 @@ namespace EDX
 			mGlobalRenderStates.mProjMatrix = mProj;
 			mGlobalRenderStates.mModelViewProjMatrix = mProj * mModelView;
 			mGlobalRenderStates.mRasterMatrix = mToRaster;
+			mGlobalRenderStates.mTexFilter = TextureFilter::TriLinear;
 		}
 
 		void Renderer::RenderMesh(const Mesh& mesh)
