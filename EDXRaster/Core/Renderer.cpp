@@ -190,8 +190,7 @@ namespace EDX
 
 								if (tri.EdgeFunc0(rejCorner0) < 0 || tri.EdgeFunc1(rejCorner1) < 0 || tri.EdgeFunc2(rejCorner2) < 0)
 									continue;
-
-
+								
 								const Vector2i acptCornerOffset0 = Vector2i(tri.acceptCorner0 % 2, tri.acceptCorner0 / 2);
 								const Vector2i acptCornerOffset1 = Vector2i(tri.acceptCorner1 % 2, tri.acceptCorner1 / 2);
 								const Vector2i acptCornerOffset2 = Vector2i(tri.acceptCorner2 % 2, tri.acceptCorner2 / 2);
@@ -276,10 +275,10 @@ namespace EDX
 					mGlobalRenderStates);
 
 				Color4b colorByte[4];
-				colorByte[0].FromFloat(shadingResults.x[0], shadingResults.y[0], shadingResults.z[0]);
-				colorByte[1].FromFloat(shadingResults.x[1], shadingResults.y[1], shadingResults.z[1]);
-				colorByte[2].FromFloat(shadingResults.x[2], shadingResults.y[2], shadingResults.z[2]);
-				colorByte[3].FromFloat(shadingResults.x[3], shadingResults.y[3], shadingResults.z[3]);
+				colorByte[0].FromFloats(shadingResults.x[0], shadingResults.y[0], shadingResults.z[0]);
+				colorByte[1].FromFloats(shadingResults.x[1], shadingResults.y[1], shadingResults.z[1]);
+				colorByte[2].FromFloats(shadingResults.x[2], shadingResults.y[2], shadingResults.z[2]);
+				colorByte[3].FromFloats(shadingResults.x[3], shadingResults.y[3], shadingResults.z[3]);
 
 				mTiledShadingResultBuf[frag.tileId][frag.intraTileIdx] = _mm_loadu_si128((__m128i*)&colorByte);
 			});

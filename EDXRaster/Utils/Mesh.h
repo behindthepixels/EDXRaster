@@ -2,6 +2,7 @@
 
 #include "Graphics/ObjMesh.h"
 #include "Graphics/Texture.h"
+#include "Math/BoundingBox.h"
 
 #include "Memory/RefPtr.h"
 
@@ -21,6 +22,8 @@ namespace EDX
 
 			vector<RefPtr<Texture2D<Color>>> mTextures;
 			vector<uint> mTexIdx;
+
+			BoundingBox mBounds;
 
 		public:
 			void LoadMesh(const Vector3& pos,
@@ -55,6 +58,11 @@ namespace EDX
 			const vector<uint>& GetTextureIds() const
 			{
 				return mTexIdx;
+			}
+
+			inline const BoundingBox GetBounds() const
+			{
+				return mBounds;
 			}
 
 			void Release();

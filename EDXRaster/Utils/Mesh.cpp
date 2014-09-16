@@ -29,6 +29,8 @@ namespace EDX
 					mTextures.push_back(new ConstantTexture2D<Color>(materialInfo[i].color));
 			}
 			mTexIdx = mesh.GetMaterialIdxBuf();
+
+			mBounds = mesh.GetBounds();
 		}
 
 		void Mesh::LoadPlane(const Vector3& pos,
@@ -44,6 +46,8 @@ namespace EDX
 
 			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
+
+			mBounds = mesh.GetBounds();
 		}
 
 		void Mesh::LoadSphere(const Vector3& pos,
@@ -61,6 +65,8 @@ namespace EDX
 
 			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
+
+			mBounds = mesh.GetBounds();
 		}
 
 		void Mesh::Release()

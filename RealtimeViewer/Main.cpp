@@ -13,8 +13,8 @@ using namespace EDX;
 using namespace EDX::GUI;
 using namespace EDX::RasterRenderer;
 
-int giWindowWidth = 800;
-int giWindowHeight = 600;
+int giWindowWidth = 1280;
+int giWindowHeight = 720;
 
 int gTexFilterId = 2;
 int gMSAAId = 0;
@@ -34,10 +34,10 @@ void OnInit(Object* pSender, EventArgs args)
 
 	gRenderer = new Renderer;
 	gRenderer->Initialize(giWindowWidth, giWindowHeight);
-	gCamera.Init(-5.0f * Vector3::UNIT_Z, Vector3::ZERO, Vector3::UNIT_Y, giWindowWidth, giWindowHeight, 65);
+	gCamera.Init(-5.0f * Vector3::UNIT_Z, Vector3::ZERO, Vector3::UNIT_Y, giWindowWidth, giWindowHeight, 65, 0.01f);
 
 	//gMesh.LoadPlane(Vector3::ZERO, Vector3(1, 1, 1), Vector3(-90.0f, 0.0f, 0.0f), 1.2f);
-	gMesh.LoadSphere(Vector3::ZERO, Vector3::UNIT_SCALE, Vector3::ZERO, 0.8f);
+	gMesh.LoadSphere(Vector3::ZERO, Vector3::UNIT_SCALE, Vector3::ZERO, 1.2f);
 	//gMesh.LoadMesh(Vector3(0, -10, 35), Vector3::UNIT_SCALE, Vector3(0, 180, 0), "../../Media/bunny.obj");
 	//gMesh.LoadMesh(Vector3(0, -10, 35), 0.003f * Vector3::UNIT_SCALE, Vector3(0, 180, 0), "../../Media/venusm.obj");
 	//gMesh.LoadMesh(Vector3(0, 0, 35), Vector3::UNIT_SCALE, Vector3(180, 180, 0), "../../Media/budha.obj");
@@ -48,18 +48,24 @@ void OnInit(Object* pSender, EventArgs args)
 	//gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), "../../Media/sponza/sponza.obj");
 	//gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), "../../Media/crytek-sponza/sponza.obj");
 
+	Vector3 center;
+	float radius;
+	gMesh.GetBounds().BoundingSphere(&center, &radius);
+	gCamera.mMoveScaler = radius / 50.0f;
+
 	// Initialize UI
 	gDialog.Init(giWindowWidth - 200, 0, giWindowWidth, giWindowHeight);
 	gDialog.SetCallback(GUIEvent);
 
 	int iY = 20;
 	gDialog.AddText(0, 30, iY += 24, 100, 20, "Image Res: 800, 600");
-	gDialog.AddText(1, 30, iY += 24, 100, 20, "FPS: 0");
-	gDialog.AddText(2, 30, iY += 24, 100, 20, "");
+	gDialog.AddText(1, 30, iY += 24, 100, 20, "Triangle Count: ");
+	gDialog.AddText(2, 30, iY += 24, 100, 20, "FPS: 0");
 	gDialog.AddText(3, 30, iY += 24, 100, 20, "");
-	gDialog.AddButton(4, 30, iY += 24, 100, 20, "Load Scene");
-	gDialog.AddButton(5, 30, iY += 24, 100, 20, "Toggle MSAA");
-	gDialog.AddButton(6, 30, iY += 24, 100, 20, "Toggle Filter");
+	gDialog.AddText(4, 30, iY += 24, 100, 20, "");
+	gDialog.AddButton(5, 30, iY += 24, 100, 20, "Load Scene");
+	gDialog.AddButton(6, 30, iY += 24, 100, 20, "Toggle MSAA");
+	gDialog.AddButton(7, 30, iY += 24, 100, 20, "Toggle Filter");
 
 	gTimer.Start();
 }
@@ -82,7 +88,10 @@ void OnRender(Object* pSender, EventArgs args)
 	_snprintf_s(strText, _MAX_PATH, "Image Res: %i, %i\0", giWindowWidth, giWindowHeight);
 	pText->SetText(strText);
 
-	((Text*)gDialog.GetControlWithID(1))->SetText(gTimer.GetFrameRate());
+	_snprintf_s(strText, _MAX_PATH, "Triangle Count: %i\0", gMesh.GetIndexBuffer()->GetTriangleCount());
+	((Text*)gDialog.GetControlWithID(1))->SetText(strText);
+
+	((Text*)gDialog.GetControlWithID(2))->SetText(gTimer.GetFrameRate());
 
 	static char* msaaStr[] = {
 		"MSAA: off",
@@ -90,7 +99,7 @@ void OnRender(Object* pSender, EventArgs args)
 		"MSAA: 8x",
 		"MSAA: 16x"
 	};
-	((Text*)gDialog.GetControlWithID(2))->SetText(msaaStr[gMSAAId]);
+	((Text*)gDialog.GetControlWithID(3))->SetText(msaaStr[gMSAAId]);
 
 	static char* filterStr[] = {
 		"TextureFilter: Nearst",
@@ -100,7 +109,7 @@ void OnRender(Object* pSender, EventArgs args)
 		"TextureFilter: 8x Anisotropic",
 		"TextureFilter: 16x Anisotropic"
 	};
-	((Text*)gDialog.GetControlWithID(3))->SetText(filterStr[gTexFilterId]);
+	((Text*)gDialog.GetControlWithID(4))->SetText(filterStr[gTexFilterId]);
 
 	gDialog.Render();
 	// 	Matrix mView = gCamera.GetViewMatrix();
@@ -167,7 +176,7 @@ void GUIEvent(uint iID, EDXControl* pControl)
 {
 	switch (iID)
 	{
-	case 4:
+	case 5:
 		OPENFILENAMEA ofn;
 		ZeroMemory(&ofn, sizeof(ofn));
 
@@ -190,16 +199,23 @@ void GUIEvent(uint iID, EDXControl* pControl)
 		{
 			gMesh.Release();
 			gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), ofn.lpstrFile);
+
+			Vector3 center;
+			float radius;
+			gMesh.GetBounds().BoundingSphere(&center, &radius);
+
+			gCamera.Init(Vector3::ZERO, Vector3::UNIT_Z, Vector3::UNIT_Y, giWindowWidth, giWindowHeight, 65, radius * 0.02f, radius * 5.0f);
+			gCamera.mMoveScaler = radius / 50.0f;
 		}
 		return;
 
-	case 5:
+	case 6:
 		gMSAAId++;
 		gMSAAId %= 4;
 		gRenderer->SetMSAAMode(gMSAAId);
 		return;
 
-	case 6:
+	case 7:
 		gTexFilterId++;
 		gTexFilterId %= 6;
 		gRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
