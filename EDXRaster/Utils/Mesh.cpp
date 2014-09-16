@@ -62,5 +62,13 @@ namespace EDX
 			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
 		}
+
+		void Mesh::Release()
+		{
+			mpVertexBuf->Release();
+			mpIndexBuf->Release();
+			mTextures.clear();
+			mTexIdx.clear();
+		}
 	}
 }

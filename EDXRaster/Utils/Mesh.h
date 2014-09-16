@@ -56,6 +56,8 @@ namespace EDX
 			{
 				return mTexIdx;
 			}
+
+			void Release();
 		};
 	}
 }

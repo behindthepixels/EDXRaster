@@ -233,9 +233,9 @@ namespace EDX
 						for (auto sampleId = 0; sampleId < sampleCount; sampleId++)
 						{
 							const Vector2i& sampleOffset = FrameBuffer::MultiSampleOffsets[multiSampleLevel][2 * sampleId];
-							IntSSE e0 = triRef.acceptEdge0 ? Math::EDX_INFINITY : edgeVal0 + sampleOffset.x * triSSE.B0 + sampleOffset.y * triSSE.C0;
-							IntSSE e1 = triRef.acceptEdge1 ? Math::EDX_INFINITY : edgeVal1 + sampleOffset.x * triSSE.B1 + sampleOffset.y * triSSE.C1;
-							IntSSE e2 = triRef.acceptEdge2 ? Math::EDX_INFINITY : edgeVal2 + sampleOffset.x * triSSE.B2 + sampleOffset.y * triSSE.C2;
+							IntSSE e0 = edgeVal0 + sampleOffset.x * triSSE.B0 + sampleOffset.y * triSSE.C0;
+							IntSSE e1 = edgeVal1 + sampleOffset.x * triSSE.B1 + sampleOffset.y * triSSE.C1;
+							IntSSE e2 = edgeVal2 + sampleOffset.x * triSSE.B2 + sampleOffset.y * triSSE.C2;
 
 							covered = (e0 | e1 | e2) >= IntSSE(Math::EDX_ZERO);
 

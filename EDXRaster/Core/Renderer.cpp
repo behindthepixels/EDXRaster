@@ -20,11 +20,13 @@ namespace EDX
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 
+			mGlobalRenderStates.mTexFilter = TextureFilter::TriLinear;
+			mGlobalRenderStates.mSampleCountLog2 = 0;
 			if (!mpFrameBuffer)
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, 0);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, mGlobalRenderStates.mSampleCountLog2);
 
 			if (!mpScene)
 			{
@@ -52,14 +54,45 @@ namespace EDX
 			mNumCores = DetectCPUCount();
 		}
 
-		void Renderer::SetRenderState(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
+		void Renderer::Resize(uint iScreenWidth, uint iScreenHeight)
+		{
+			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
+			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
+
+			mpFrameBuffer->Resize(iScreenWidth, iScreenHeight, mTileDim, mGlobalRenderStates.mSampleCountLog2);
+
+			mTiles.clear();
+			int tId = 0;
+			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
+			{
+				for (auto j = 0; j < iScreenWidth; j += Tile::SIZE)
+				{
+					auto maxX = Math::Min(j + Tile::SIZE, iScreenWidth);
+					auto maxY = Math::Min(i + Tile::SIZE, iScreenHeight);
+
+					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY), tId++));
+				}
+			}
+		}
+
+		void Renderer::SetTransform(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
 		{
 			mGlobalRenderStates.mModelViewMatrix = mModelView;
 			mGlobalRenderStates.mModelViewInvMatrix = Matrix::Inverse(mModelView);
 			mGlobalRenderStates.mProjMatrix = mProj;
 			mGlobalRenderStates.mModelViewProjMatrix = mProj * mModelView;
 			mGlobalRenderStates.mRasterMatrix = mToRaster;
-			mGlobalRenderStates.mTexFilter = TextureFilter::TriLinear;
+		}
+
+		void Renderer::SetTextureFilter(const TextureFilter filter)
+		{
+			mGlobalRenderStates.mTexFilter = filter;
+		}
+
+		void Renderer::SetMSAAMode(const int sampleCountLog2)
+		{
+			mGlobalRenderStates.mSampleCountLog2 = sampleCountLog2;
+			Resize(mpFrameBuffer->GetWidth(), mpFrameBuffer->GetHeight());
 		}
 
 		void Renderer::RenderMesh(const Mesh& mesh)

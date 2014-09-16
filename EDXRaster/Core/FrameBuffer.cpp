@@ -27,6 +27,15 @@ namespace EDX
 				it.Init(Vector3i(mSampleCount, Tile::SIZE >> 1, Tile::SIZE >> 1));
 		}
 
+		void FrameBuffer::Resize(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2)
+		{
+			mColorBuffer.Free();
+			mColorBufferMS.Free();
+			mTiledDepthBuffer.clear();
+
+			Init(iWidth, iHeight, tileDim, sampleCountLog2);
+		}
+
 		void FrameBuffer::SetPixel(const Color& c, const int x, const int y, const uint sId)
 		{
 			mColorBufferMS[Vector3i(sId, x, mResY - 1 - y)] = c;

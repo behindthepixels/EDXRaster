@@ -28,6 +28,8 @@ namespace EDX
 
 		public:
 			void Init(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2 = 0);
+			void Resize(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2 = 0);
+
 			void SetPixel(const Color& c, const int x, const int y, const uint sId);
 			bool ZTest(const float d, const int x, const int y, const uint sId);
 			BoolSSE ZTestQuad(const FloatSSE& d, const int x, const int y, const uint sId, const BoolSSE& mask);

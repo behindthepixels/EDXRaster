@@ -18,6 +18,7 @@ namespace EDX
 			Matrix mModelViewProjMatrix;
 			Matrix mRasterMatrix;
 
+			uint mSampleCountLog2;
 			bool mBackFaceCull;
 			TextureFilter mTexFilter;
 

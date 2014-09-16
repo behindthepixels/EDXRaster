@@ -36,7 +36,10 @@ namespace EDX
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
-			void SetRenderState(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
+			void Resize(uint iScreenWidth, uint iScreenHeight);
+			void SetTransform(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
+			void SetTextureFilter(const TextureFilter filter);
+			void SetMSAAMode(const int msaaCountLog2);
 			void RenderMesh(const class Mesh& mesh);
 
 			const float* GetBackBuffer() const;
