@@ -26,7 +26,7 @@ namespace EDX
 			vector<ProjectedVertex> mProjectedVertexBuf;
 			vector<RasterTriangle> mRasterTriangleBuf;
 			vector<QuadFragment> mFragmentBuf;
-			vector<vector<Vec3f_SSE>> mTiledShadingResultBuf;
+			vector<vector<IntSSE>> mTiledShadingResultBuf;
 
 			vector<Tile> mTiles;
 			Vector2i mTileDim;
@@ -42,7 +42,7 @@ namespace EDX
 			void SetMSAAMode(const int msaaCountLog2);
 			void RenderMesh(const class Mesh& mesh);
 
-			const float* GetBackBuffer() const;
+			const _byte* GetBackBuffer() const;
 
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);

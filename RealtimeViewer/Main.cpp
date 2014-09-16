@@ -73,7 +73,7 @@ void OnRender(Object* pSender, EventArgs args)
 	gRenderer->RenderMesh(gMesh);
 
 	glRasterPos3f(0.0f, 0.0f, 0.0f);
-	glDrawPixels(giWindowWidth, giWindowHeight, GL_RGBA, GL_FLOAT, gRenderer->GetBackBuffer());
+	glDrawPixels(giWindowWidth, giWindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, gRenderer->GetBackBuffer());
 
 	gTimer.MarkFrame();
 

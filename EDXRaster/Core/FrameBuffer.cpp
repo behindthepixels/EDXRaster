@@ -36,7 +36,7 @@ namespace EDX
 			Init(iWidth, iHeight, tileDim, sampleCountLog2);
 		}
 
-		void FrameBuffer::SetPixel(const Color& c, const int x, const int y, const uint sId)
+		void FrameBuffer::SetPixel(const Color4b& c, const int x, const int y, const uint sId)
 		{
 			mColorBufferMS[Vector3i(sId, x, mResY - 1 - y)] = c;
 		}
@@ -79,10 +79,10 @@ namespace EDX
 				Color c = 0;
 				for (auto s = 0; s < mSampleCount; s++)
 				{
-					c += mColorBufferMS[Vector3i(s, idx.x, idx.y)];
+					c += Color(mColorBufferMS[Vector3i(s, idx.x, idx.y)]);
 				}
 				c *= invSampleCount;
-				mColorBuffer[i] = c;
+				mColorBuffer[i] = Color4b(c);
 			});
 		}
 

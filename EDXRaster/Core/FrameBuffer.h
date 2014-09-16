@@ -8,8 +8,8 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
-		typedef Array<2, Color> Array2C;
-		typedef Array<3, Color> Array3C;
+		typedef Array<2, Color4b> Array2C;
+		typedef Array<3, Color4b> Array3C;
 
 		class FrameBuffer
 		{
@@ -30,7 +30,7 @@ namespace EDX
 			void Init(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2 = 0);
 			void Resize(uint iWidth, uint iHeight, const Vector2i& tileDim, uint sampleCountLog2 = 0);
 
-			void SetPixel(const Color& c, const int x, const int y, const uint sId);
+			void SetPixel(const Color4b& c, const int x, const int y, const uint sId);
 			bool ZTest(const float d, const int x, const int y, const uint sId);
 			BoolSSE ZTestQuad(const FloatSSE& d, const int x, const int y, const uint sId, const BoolSSE& mask);
 			void Resolve();
@@ -51,9 +51,9 @@ namespace EDX
 			{
 				return mResY;
 			}
-			const float* GetColorBuffer() const
+			const _byte* GetColorBuffer() const
 			{
-				return mSampleCount == 1 ? (float*)mColorBufferMS.Data() : (float*)mColorBuffer.Data();
+				return mSampleCount == 1 ? (_byte*)mColorBufferMS.Data() : (_byte*)mColorBuffer.Data();
 			}
 
 			void Clear(const bool clearColor = true, const bool clearDepth = true);

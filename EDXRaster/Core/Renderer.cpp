@@ -267,13 +267,21 @@ namespace EDX
 				Vec2f_SSE texCoord;
 				frag.Interpolate(v0, v1, v2, frag.lambda0, frag.lambda1, position, normal, texCoord);
 
-				mTiledShadingResultBuf[frag.tileId][frag.intraTileIdx] = mpPixelShader->Shade(frag,
+				Vec3f_SSE shadingResults = mpPixelShader->Shade(frag,
 					Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
 					Vector3(1, 1, -1),
 					position,
 					normal,
 					texCoord,
 					mGlobalRenderStates);
+
+				Color4b colorByte[4];
+				colorByte[0].FromFloat(shadingResults.x[0], shadingResults.y[0], shadingResults.z[0]);
+				colorByte[1].FromFloat(shadingResults.x[1], shadingResults.y[1], shadingResults.z[1]);
+				colorByte[2].FromFloat(shadingResults.x[2], shadingResults.y[2], shadingResults.z[2]);
+				colorByte[3].FromFloat(shadingResults.x[3], shadingResults.y[3], shadingResults.z[3]);
+
+				mTiledShadingResultBuf[frag.tileId][frag.intraTileIdx] = _mm_loadu_si128((__m128i*)&colorByte);
 			});
 
 			parallel_for(0, (int)mTiledShadingResultBuf.size(), [&](int i)
@@ -284,32 +292,34 @@ namespace EDX
 					for (auto sId = 0; sId < mpFrameBuffer->GetSampleCount(); sId++)
 					{
 						int maskShift = sId << 2;
+
+						const IntSSE& quadResults = mTiledShadingResultBuf[i][j];
 						if (frag.coverageMask.GetBit(maskShift) != 0)
 						{
-							mpFrameBuffer->SetPixel(Color(mTiledShadingResultBuf[i][j].x[0],
-								mTiledShadingResultBuf[i][j].y[0],
-								mTiledShadingResultBuf[i][j].z[0]),
+							mpFrameBuffer->SetPixel(Color4b(quadResults.m128.m128i_u8[0],
+								quadResults.m128.m128i_u8[1],
+								quadResults.m128.m128i_u8[2]),
 								frag.x, frag.y, sId);
 						}
 						if (frag.coverageMask.GetBit(maskShift + 1) != 0)
 						{
-							mpFrameBuffer->SetPixel(Color(mTiledShadingResultBuf[i][j].x[1],
-								mTiledShadingResultBuf[i][j].y[1],
-								mTiledShadingResultBuf[i][j].z[1]),
+							mpFrameBuffer->SetPixel(Color4b(quadResults.m128.m128i_u8[4],
+								quadResults.m128.m128i_u8[5],
+								quadResults.m128.m128i_u8[6]),
 								frag.x + 1, frag.y, sId);
 						}
 						if (frag.coverageMask.GetBit(maskShift + 2) != 0)
 						{
-							mpFrameBuffer->SetPixel(Color(mTiledShadingResultBuf[i][j].x[2],
-								mTiledShadingResultBuf[i][j].y[2],
-								mTiledShadingResultBuf[i][j].z[2]),
+							mpFrameBuffer->SetPixel(Color4b(quadResults.m128.m128i_u8[8],
+								quadResults.m128.m128i_u8[9],
+								quadResults.m128.m128i_u8[10]),
 								frag.x, frag.y + 1, sId);
 						}
 						if (frag.coverageMask.GetBit(maskShift + 3) != 0)
 						{
-							mpFrameBuffer->SetPixel(Color(mTiledShadingResultBuf[i][j].x[3],
-								mTiledShadingResultBuf[i][j].y[3],
-								mTiledShadingResultBuf[i][j].z[3]),
+							mpFrameBuffer->SetPixel(Color4b(quadResults.m128.m128i_u8[12],
+								quadResults.m128.m128i_u8[13],
+								quadResults.m128.m128i_u8[14]),
 								frag.x + 1, frag.y + 1, sId);
 						}
 					}
@@ -319,7 +329,7 @@ namespace EDX
 			mpFrameBuffer->Resolve();
 		}
 
-		const float* Renderer::GetBackBuffer() const
+		const _byte* Renderer::GetBackBuffer() const
 		{
 			return mpFrameBuffer->GetColorBuffer();
 		}
