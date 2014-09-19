@@ -31,7 +31,7 @@ namespace EDX
 			Vector2i minCoord, maxCoord;
 			uint tileId;
 			vector<TriangleRef> triangleRefs[12];
-			vector<QuadFragment> fragmentBuf;
+			vector<Fragment> fragmentBuf;
 
 			Tile(const Vector2i& min, const Vector2i& max, const uint tId)
 				: minCoord(min), maxCoord(max), tileId(tId)

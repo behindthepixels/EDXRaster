@@ -162,7 +162,7 @@ namespace EDX
 							BoolSSE visible = zTest & covered;
 							if (SSE::Any(visible))
 							{
-								tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+								tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
 									triSSE.lambda1,
 									triSSE.vId0,
 									triSSE.vId1,
@@ -262,7 +262,7 @@ namespace EDX
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
-							tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+							tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
 								triSSE.lambda1,
 								triSSE.vId0,
 								triSSE.vId1,
@@ -323,7 +323,7 @@ namespace EDX
 						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, 0, BoolSSE(Constants::EDX_TRUE));
 						if (SSE::Any(zTest))
 						{
-							tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+							tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
 								triSSE.lambda1,
 								triSSE.vId0,
 								triSSE.vId1,
@@ -384,7 +384,7 @@ namespace EDX
 						if (genFragment)
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
-							tile.fragmentBuf.push_back(QuadFragment(triSSE.lambda0,
+							tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
 								triSSE.lambda1,
 								triSSE.vId0,
 								triSSE.vId1,

@@ -34,7 +34,7 @@ namespace EDX
 			}
 
 			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new QuadLambertianAlbedoPixelShader;
+			mpPixelShader = new LambertianAlbedoPixelShader;
 
 			int tId = 0;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
@@ -97,7 +97,6 @@ namespace EDX
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
-			mFrameCount++;
 			mpFrameBuffer->Clear();
 			mGlobalRenderStates.mTextureSlots = mesh.GetTextures();
 
@@ -105,6 +104,9 @@ namespace EDX
 			Clipping(mesh.GetIndexBuffer(), mesh.GetTextureIds());
 			TiledRasterization();
 			FragmentProcessing();
+			UpdateFrameBuffer();
+
+			mFrameCount++;
 		}
 
 		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
@@ -255,7 +257,7 @@ namespace EDX
 			//for (auto i = 0; i < mFragmentBuf.size(); i++)
 			parallel_for(0, (int)mFragmentBuf.size(), [&](int i)
 			{
-				QuadFragment& frag = mFragmentBuf[i];
+				Fragment& frag = mFragmentBuf[i];
 
 				const ProjectedVertex& v0 = mProjectedVertexBuf[frag.vId0];
 				const ProjectedVertex& v1 = mProjectedVertexBuf[frag.vId1];
@@ -282,12 +284,15 @@ namespace EDX
 
 				mTiledShadingResultBuf[frag.tileId][frag.intraTileIdx] = _mm_loadu_si128((__m128i*)&colorByte);
 			});
+		}
 
+		void Renderer::UpdateFrameBuffer()
+		{
 			parallel_for(0, (int)mTiledShadingResultBuf.size(), [&](int i)
 			{
 				for (auto j = 0; j < mTiles[i].fragmentBuf.size(); j++)
 				{
-					const QuadFragment& frag = mTiles[i].fragmentBuf[j];
+					const Fragment& frag = mTiles[i].fragmentBuf[j];
 					for (auto sId = 0; sId < mpFrameBuffer->GetSampleCount(); sId++)
 					{
 						int maskShift = sId << 2;

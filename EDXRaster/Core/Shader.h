@@ -51,34 +51,6 @@ namespace EDX
 			}
 		};
 
-		struct Fragment
-		{
-			Vector3 position;
-			Vector3 normal;
-			Vector2 texCoord;
-			float depth;
-
-			void Interpolate(const ProjectedVertex& v0,
-				const ProjectedVertex& v1,
-				const ProjectedVertex& v2,
-				float& b0,
-				float& b1)
-			{
-				float b2 = 1.0f - b0 - b1;
-				b0 *= v0.invW;
-				b1 *= v1.invW;
-				b2 *= v2.invW;
-				float invB = 1.0f / (b0 + b1 + b2);
-				b0 *= invB;
-				b1 *= invB;
-				b2 = 1.0f - b0 - b1;
-
-				position = b0 * v0.position + b1 * v1.position + b2 * v2.position;
-				normal = b0 * v0.normal + b1 * v1.normal + b2 * v2.normal;
-				texCoord = b0 * v0.texCoord + b1 * v1.texCoord + b2 * v2.texCoord;
-			}
-		};
-
 		struct CoverageMask
 		{
 			int bits[4]; // For up to 32x MSAA coverage mask
@@ -132,7 +104,7 @@ namespace EDX
 			}
 		};
 
-		struct QuadFragment
+		struct Fragment
 		{
 			FloatSSE lambda0, lambda1;
 			CoverageMask coverageMask;
@@ -143,7 +115,7 @@ namespace EDX
 			uint tileId;
 			uint intraTileIdx;
 
-			QuadFragment(const FloatSSE& l0,
+			Fragment(const FloatSSE& l0,
 				const FloatSSE& l1,
 				const int id0,
 				const int id1,
@@ -202,37 +174,7 @@ namespace EDX
 		{
 		public:
 			virtual ~PixelShader() {}
-			virtual Color Shade(const Fragment& fragIn,
-				const Vector3& eyePos,
-				const Vector3& lightDir) const = 0;
-		};
-
-		class BlinnPhongPixelShader : public PixelShader
-		{
-		public:
-			Color Shade(const Fragment& fragIn,
-				const Vector3& eyePos,
-				const Vector3& lightDir) const
-			{
-				Vector3 normal = Math::Normalize(fragIn.normal);
-				float diffuseAmount = Math::Saturate(Math::Dot(Math::Normalize(lightDir), normal));
-				Color diffuse = (diffuseAmount + 0.1f) * 2 * Color::WHITE * Math::EDX_INV_PI;
-
-				Vector3 eyeDir = Math::Normalize(eyePos - fragIn.position);
-				Vector3 halfVec = Math::Normalize(lightDir + eyeDir);
-				float specularAmount = Math::Saturate(Math::Dot(normal, halfVec));
-				specularAmount = Math::Pow(specularAmount, max(200.0f, 0.0001f)) * 2;
-				Color specular = Color::WHITE * specularAmount;
-
-				return diffuse + specular;
-			}
-		};
-
-		class QuadPixelShader
-		{
-		public:
-			virtual ~QuadPixelShader() {}
-			virtual Vec3f_SSE Shade(QuadFragment& fragIn,
+			virtual Vec3f_SSE Shade(Fragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -241,10 +183,10 @@ namespace EDX
 				RenderState& state) const = 0;
 		};
 
-		class QuadLambertianPixelShader : public QuadPixelShader
+		class LambertianPixelShader : public PixelShader
 		{
 		public:
-			Vec3f_SSE Shade(QuadFragment& fragIn,
+			Vec3f_SSE Shade(Fragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -265,10 +207,10 @@ namespace EDX
 			}
 		};
 
-		class QuadLambertianAlbedoPixelShader : public QuadPixelShader
+		class LambertianAlbedoPixelShader : public PixelShader
 		{
 		public:
-			Vec3f_SSE Shade(QuadFragment& fragIn,
+			Vec3f_SSE Shade(Fragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
@@ -289,24 +231,24 @@ namespace EDX
 					Vector2(texCoord.u[2] - texCoord.u[0], texCoord.v[2] - texCoord.v[0]) };
 
 				state.mTextureSlots[fragIn.textureId]->SetFilter(state.GetTextureFilter());
-				Vec3f_SSE quadAlbedo;
+				Vec3f_SSE Albedo;
 				for (auto i = 0; i < 4; i++)
 				{
 					Color color = state.mTextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]), differentials);
-					quadAlbedo.x[i] = color.r;
-					quadAlbedo.y[i] = color.g;
-					quadAlbedo.z[i] = color.b;
+					Albedo.x[i] = color.r;
+					Albedo.y[i] = color.g;
+					Albedo.z[i] = color.b;
 				}
 				FloatSSE diffuse = (diffuseAmount + 0.2f) * 3 * Math::EDX_INV_PI;
 
-				return diffuse * quadAlbedo;
+				return diffuse * Albedo;
 			}
 		};
 
-		class QuadBlinnPhongPixelShader : public QuadPixelShader
+		class BlinnPhongPixelShader : public PixelShader
 		{
 		public:
-			Vec3f_SSE Shade(QuadFragment& fragIn,
+			Vec3f_SSE Shade(Fragment& fragIn,
 				const Vector3& eyePos,
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,

@@ -7,7 +7,7 @@
 #include "Graphics/EDXGui.h"
 #include "Windows/Timer.h"
 
-#include <gl/GL.h>
+#include <Graphics/OpenGL.h>
 
 using namespace EDX;
 using namespace EDX::GUI;
@@ -26,7 +26,7 @@ Mesh			gMesh;
 EDXDialog		gDialog;
 Timer			gTimer;
 
-void GUIEvent(uint iID, EDXControl* pControl);
+void GUIEvent(Object* pObject, EventArgs args);
 
 void OnInit(Object* pSender, EventArgs args)
 {
@@ -55,7 +55,7 @@ void OnInit(Object* pSender, EventArgs args)
 
 	// Initialize UI
 	gDialog.Init(giWindowWidth - 200, 0, giWindowWidth, giWindowHeight);
-	gDialog.SetCallback(GUIEvent);
+	gDialog.SetCallback(NotifyEvent(GUIEvent));
 
 	int iY = 20;
 	gDialog.AddText(0, 30, iY += 24, 100, 20, "Image Res: 800, 600");
@@ -157,6 +157,7 @@ void OnRelease(Object* pSender, EventArgs args)
 {
 	gRenderer.Dereference();
 	gMesh.~Mesh();
+	gDialog.Release();
 }
 
 void OnMouseEvent(Object* pSender, MouseEventArgs args)
@@ -172,33 +173,18 @@ void OnKeyboardEvent(Object* pSender, KeyboardEventArgs args)
 	gCamera.HandleKeyboardMsg(args);
 }
 
-void GUIEvent(uint iID, EDXControl* pControl)
+void GUIEvent(Object* pObject, EventArgs args)
 {
-	switch (iID)
+	EDXControl* pControl = (EDXControl*)pObject;
+	switch (pControl->GetID())
 	{
 	case 5:
-		OPENFILENAMEA ofn;
-		ZeroMemory(&ofn, sizeof(ofn));
-
-		char szFile[MAX_PATH];       // buffer for file name
-
-		// Initialize OPENFILENAME
-		ofn.lStructSize = sizeof(ofn);
-		ofn.hwndOwner = Application::GetMainWindow()->GetHandle();
-		ofn.lpstrFile = szFile;
-		ofn.lpstrFile[0] = '\0';
-		ofn.nMaxFile = sizeof(szFile);
-		ofn.lpstrFilter = "";
-		ofn.nFilterIndex = 1;
-		ofn.lpstrFileTitle = NULL;
-		ofn.nMaxFileTitle = 0;
-		ofn.lpstrInitialDir = "../../Media";
-		ofn.lpstrDefExt = "obj";
-		ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-		if (GetOpenFileNameA(&ofn) != 0)
+	{
+		char filePath[MAX_PATH];
+		if (Application::GetMainWindow()->OpenFileDialog("../../Media", "obj", filePath))
 		{
 			gMesh.Release();
-			gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), ofn.lpstrFile);
+			gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), filePath);
 
 			Vector3 center;
 			float radius;
@@ -208,6 +194,7 @@ void GUIEvent(uint iID, EDXControl* pControl)
 			gCamera.mMoveScaler = radius / 50.0f;
 		}
 		return;
+	}
 
 	case 6:
 		gMSAAId++;

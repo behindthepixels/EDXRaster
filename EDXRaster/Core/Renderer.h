@@ -20,12 +20,12 @@ namespace EDX
 			RefPtr<class FrameBuffer> mpFrameBuffer;
 			RefPtr<class Rasterizer> mpRasterizer;
 			RefPtr<class VertexShader> mpVertexShader;
-			RefPtr<class QuadPixelShader> mpPixelShader;
+			RefPtr<class PixelShader> mpPixelShader;
 			RefPtr<class Scene> mpScene;
 
 			vector<ProjectedVertex> mProjectedVertexBuf;
 			vector<RasterTriangle> mRasterTriangleBuf;
-			vector<QuadFragment> mFragmentBuf;
+			vector<Fragment> mFragmentBuf;
 			vector<vector<IntSSE>> mTiledShadingResultBuf;
 
 			vector<Tile> mTiles;
@@ -50,6 +50,7 @@ namespace EDX
 			void TiledRasterization();
 			void RasterizeTile_Hierarchical(Tile& tile);
 			void FragmentProcessing();
+			void UpdateFrameBuffer();
 		};
 
 	}
