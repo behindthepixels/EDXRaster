@@ -54,18 +54,18 @@ void OnInit(Object* pSender, EventArgs args)
 	gCamera.mMoveScaler = radius / 50.0f;
 
 	// Initialize UI
-	gDialog.Init(giWindowWidth - 200, 0, giWindowWidth, giWindowHeight);
+	gDialog.Init(giWindowWidth, giWindowHeight);
 	gDialog.SetCallback(NotifyEvent(GUIEvent));
 
 	int iY = 20;
-	gDialog.AddText(0, 30, iY += 24, 100, 20, "Image Res: 800, 600");
-	gDialog.AddText(1, 30, iY += 24, 100, 20, "Triangle Count: ");
-	gDialog.AddText(2, 30, iY += 24, 100, 20, "FPS: 0");
-	gDialog.AddText(3, 30, iY += 24, 100, 20, "");
-	gDialog.AddText(4, 30, iY += 24, 100, 20, "");
-	gDialog.AddButton(5, 30, iY += 24, 100, 20, "Load Scene");
-	gDialog.AddButton(6, 30, iY += 24, 100, 20, "Toggle MSAA");
-	gDialog.AddButton(7, 30, iY += 24, 100, 20, "Toggle Filter");
+	gDialog.AddText(0, "Image Res: 800, 600");
+	gDialog.AddText(1, "Triangle Count: ");
+	gDialog.AddText(2, "FPS: 0");
+	gDialog.AddText(3, "");
+	gDialog.AddText(4, "");
+	gDialog.AddButton(5, "Load Scene");
+	gDialog.AddButton(6, "Toggle MSAA");
+	gDialog.AddButton(7, "Toggle Filter");
 
 	gTimer.Start();
 }
