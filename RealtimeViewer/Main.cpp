@@ -30,6 +30,7 @@ void GUIEvent(Object* pObject, EventArgs args);
 
 void OnInit(Object* pSender, EventArgs args)
 {
+	GL::LoadGLExtensions();
 	glClearColor(0.4f, 0.5f, 0.65f, 1.0f);
 
 	gRenderer = new Renderer;
