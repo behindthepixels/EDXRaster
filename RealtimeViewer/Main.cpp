@@ -18,6 +18,7 @@ int giWindowHeight = 720;
 
 int gTexFilterId = 2;
 int gMSAAId = 0;
+bool gHRas = true;
 
 // Global variables
 RefPtr<Renderer>		gRenderer;
@@ -58,10 +59,11 @@ void OnInit(Object* pSender, EventArgs args)
 	gDialog.Init(giWindowWidth, giWindowHeight);
 	gDialog.SetCallback(NotifyEvent(GUIEvent));
 
-	int iY = 20;
 	gDialog.AddText(0, "Image Res: 800, 600");
 	gDialog.AddText(1, "Triangle Count: ");
 	gDialog.AddText(2, "FPS: 0");
+
+	gDialog.AddCheckBox(3, gHRas, &gHRas, "Hierarchical Rasterize");
 
 	ComboBoxItem AAItems[] = {
 			{ 0, "MSAA: off" },
@@ -69,7 +71,7 @@ void OnInit(Object* pSender, EventArgs args)
 			{ 2, "MSAA: 8x" },
 			{ 3, "MSAA: 16x" }
 	};
-	gDialog.AddComboBox(3, gMSAAId, &gMSAAId, AAItems, 4);
+	gDialog.AddComboBox(4, gMSAAId, &gMSAAId, AAItems, 4);
 
 	ComboBoxItem FilterItems[] = {
 			{ 0, "Nearst" },
@@ -79,8 +81,8 @@ void OnInit(Object* pSender, EventArgs args)
 			{ 4, "8x Anisotropic" },
 			{ 5, "16x Anisotropic" }
 	};
-	gDialog.AddComboBox(4, gTexFilterId, &gTexFilterId, FilterItems, 6);
-	gDialog.AddButton(5, "Load Scene");
+	gDialog.AddComboBox(5, gTexFilterId, &gTexFilterId, FilterItems, 6);
+	gDialog.AddButton(6, "Load Scene");
 
 	gTimer.Start();
 }
@@ -176,14 +178,18 @@ void GUIEvent(Object* pObject, EventArgs args)
 	switch (pControl->GetID())
 	{
 	case 3:
-		gRenderer->SetMSAAMode(gMSAAId);
+		gRenderer->SetHierarchicalRasterize(gHRas);
 		return;
 
 	case 4:
-		gRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
+		gRenderer->SetMSAAMode(gMSAAId);
 		return;
 
 	case 5:
+		gRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
+		return;
+
+	case 6:
 	{
 		char filePath[MAX_PATH];
 		if (Application::GetMainWindow()->OpenFileDialog("../../Media", "obj", filePath))

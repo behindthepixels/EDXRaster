@@ -33,22 +33,24 @@ namespace EDX
 
 			int mNumCores;
 			int mFrameCount;
+			bool mHierarchicalRasterize;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
 			void Resize(uint iScreenWidth, uint iScreenHeight);
 			void SetTransform(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
-			void SetTextureFilter(const TextureFilter filter);
-			void SetMSAAMode(const int msaaCountLog2);
 			void RenderMesh(const class Mesh& mesh);
 
 			const _byte* GetBackBuffer() const;
+			void SetMSAAMode(const int msaaCountLog2);
+			void SetTextureFilter(const TextureFilter filter) { mGlobalRenderStates.mTexFilter = filter; }
+			void SetHierarchicalRasterize(const bool hRas) { mHierarchicalRasterize = hRas; }
 
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
 			void Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf);
 			void TiledRasterization();
-			void RasterizeTile_Hierarchical(Tile& tile);
+			void RasterizeTile(Tile& tile);
 			void FragmentProcessing();
 			void UpdateFrameBuffer();
 		};

@@ -50,6 +50,7 @@ namespace EDX
 
 			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mProjectedVertexBuf);
 
+			mHierarchicalRasterize = true;
 			mFrameCount = 0;
 			mNumCores = DetectCPUCount();
 		}
@@ -82,11 +83,6 @@ namespace EDX
 			mGlobalRenderStates.mProjMatrix = mProj;
 			mGlobalRenderStates.mModelViewProjMatrix = mProj * mModelView;
 			mGlobalRenderStates.mRasterMatrix = mToRaster;
-		}
-
-		void Renderer::SetTextureFilter(const TextureFilter filter)
-		{
-			mGlobalRenderStates.mTexFilter = filter;
 		}
 
 		void Renderer::SetMSAAMode(const int sampleCountLog2)
@@ -218,7 +214,7 @@ namespace EDX
 			//for (auto i = 0; i < mTiles.size(); i++)
 			parallel_for(0, (int)mTiles.size(), [&](int i)
 			{
-				RasterizeTile_Hierarchical(mTiles[i]);
+				RasterizeTile(mTiles[i]);
 			});
 
 			mFragmentBuf.clear();
@@ -230,7 +226,7 @@ namespace EDX
 			}
 		}
 
-		void Renderer::RasterizeTile_Hierarchical(Tile& tile)
+		void Renderer::RasterizeTile(Tile& tile)
 		{
 			for (auto coreId = 0; coreId < mNumCores; coreId++)
 			{
@@ -245,8 +241,10 @@ namespace EDX
 						continue;
 					}
 
-					//FineRasterize(tile, triRef, tile.minCoord, tile.maxCoord, tri);
-					mpRasterizer->CoarseRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
+					if (mHierarchicalRasterize)
+						mpRasterizer->CoarseRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
+					else
+						mpRasterizer->FineRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
 				}
 			}
 

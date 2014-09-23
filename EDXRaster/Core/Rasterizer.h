@@ -112,6 +112,19 @@ namespace EDX
 				}
 			}
 
+			__forceinline void FineRasterize(Tile& tile,
+				const Tile::TriangleRef& triRef,
+				const uint blockSize,
+				const Vector2i& blockMin,
+				const Vector2i& blockMax,
+				const RasterTriangle& tri)
+			{
+				if (mpFrameBuffer->GetSampleCount() == 1)
+					FineRasterize_SingleSample(tile, triRef, blockMin, blockMax, tri);
+				else
+					FineRasterize_MultiSample(tile, triRef, blockMin, blockMax, tri);
+			}
+
 			__forceinline void FineRasterize_SingleSample(Tile& tile,
 				const Tile::TriangleRef& triRef,
 				const Vector2i& blockMin,
