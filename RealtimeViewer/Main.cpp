@@ -62,11 +62,25 @@ void OnInit(Object* pSender, EventArgs args)
 	gDialog.AddText(0, "Image Res: 800, 600");
 	gDialog.AddText(1, "Triangle Count: ");
 	gDialog.AddText(2, "FPS: 0");
-	gDialog.AddText(3, "");
-	gDialog.AddText(4, "");
+
+	ComboBoxItem AAItems[] = {
+			{ 0, "MSAA: off" },
+			{ 1, "MSAA: 4x" },
+			{ 2, "MSAA: 8x" },
+			{ 3, "MSAA: 16x" }
+	};
+	gDialog.AddComboBox(3, gMSAAId, &gMSAAId, AAItems, 4);
+
+	ComboBoxItem FilterItems[] = {
+			{ 0, "Nearst" },
+			{ 1, "Linear" },
+			{ 2, "Trilinear" },
+			{ 3, "4x Anisotropic" },
+			{ 4, "8x Anisotropic" },
+			{ 5, "16x Anisotropic" }
+	};
+	gDialog.AddComboBox(4, gTexFilterId, &gTexFilterId, FilterItems, 6);
 	gDialog.AddButton(5, "Load Scene");
-	gDialog.AddButton(6, "Toggle MSAA");
-	gDialog.AddButton(7, "Toggle Filter");
 
 	gTimer.Start();
 }
@@ -79,7 +93,7 @@ void OnRender(Object* pSender, EventArgs args)
 	gRenderer->SetTransform(gCamera.GetViewMatrix(), gCamera.GetProjMatrix(), gCamera.GetRasterMatrix());
 	gRenderer->RenderMesh(gMesh);
 
-	glRasterPos3f(0.0f, 0.0f, 0.0f);
+	glRasterPos3f(0.0f, 0.0f, 1.0f);
 	glDrawPixels(giWindowWidth, giWindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, gRenderer->GetBackBuffer());
 
 	gTimer.MarkFrame();
@@ -93,24 +107,6 @@ void OnRender(Object* pSender, EventArgs args)
 	((Text*)gDialog.GetControlWithID(1))->SetText(strText);
 
 	((Text*)gDialog.GetControlWithID(2))->SetText(gTimer.GetFrameRate());
-
-	static char* msaaStr[] = {
-		"MSAA: off",
-		"MSAA: 4x",
-		"MSAA: 8x",
-		"MSAA: 16x"
-	};
-	((Text*)gDialog.GetControlWithID(3))->SetText(msaaStr[gMSAAId]);
-
-	static char* filterStr[] = {
-		"TextureFilter: Nearst",
-		"TextureFilter: Linear",
-		"TextureFilter: Trilinear",
-		"TextureFilter: 4x Anisotropic",
-		"TextureFilter: 8x Anisotropic",
-		"TextureFilter: 16x Anisotropic"
-	};
-	((Text*)gDialog.GetControlWithID(4))->SetText(filterStr[gTexFilterId]);
 
 	gDialog.Render();
 	// 	Matrix mView = gCamera.GetViewMatrix();
@@ -179,6 +175,14 @@ void GUIEvent(Object* pObject, EventArgs args)
 	EDXControl* pControl = (EDXControl*)pObject;
 	switch (pControl->GetID())
 	{
+	case 3:
+		gRenderer->SetMSAAMode(gMSAAId);
+		return;
+
+	case 4:
+		gRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
+		return;
+
 	case 5:
 	{
 		char filePath[MAX_PATH];
@@ -196,18 +200,6 @@ void GUIEvent(Object* pObject, EventArgs args)
 		}
 		return;
 	}
-
-	case 6:
-		gMSAAId++;
-		gMSAAId %= 4;
-		gRenderer->SetMSAAMode(gMSAAId);
-		return;
-
-	case 7:
-		gTexFilterId++;
-		gTexFilterId %= 6;
-		gRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
-		return;
 	}
 }
 
