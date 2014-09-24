@@ -7,6 +7,7 @@
 #include "../Utils/Mesh.h"
 #include "../Utils/InputBuffer.h"
 #include "Math/Matrix.h"
+#include "Windows/Bitmap.h"
 
 #include <ppl.h>
 using namespace concurrency;
@@ -101,6 +102,7 @@ namespace EDX
 			FragmentProcessing();
 			UpdateFrameBuffer();
 
+			WriteFrameToFile();
 			RenderStates::Instance()->FrameCount++;
 		}
 
@@ -327,6 +329,14 @@ namespace EDX
 			});
 
 			mpFrameBuffer->Resolve();
+		}
+
+		void Renderer::WriteFrameToFile() const
+		{
+			char fileName[256];
+			sprintf_s(fileName, 256, "../Frames/Frame%04i.bmp", RenderStates::Instance()->FrameCount);
+
+			Bitmap::SaveBitmapFile(fileName, GetBackBuffer(), mpFrameBuffer->GetWidth(), mpFrameBuffer->GetHeight());
 		}
 
 		const _byte* Renderer::GetBackBuffer() const

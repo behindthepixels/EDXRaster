@@ -38,6 +38,7 @@ namespace EDX
 			void SetTransform(const class Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster);
 			void RenderMesh(const class Mesh& mesh);
 
+			void WriteFrameToFile() const;
 			const _byte* GetBackBuffer() const;
 			void SetMSAAMode(const int msaaCountLog2);
 			void SetTextureFilter(const TextureFilter filter) { RenderStates::Instance()->TexFilter = filter; }
