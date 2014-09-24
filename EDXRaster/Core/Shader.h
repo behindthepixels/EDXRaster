@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RenderState.h"
+#include "RenderStates.h"
 #include "Math/Vector.h"
 #include "Graphics/Texture.h"
 #include "Graphics/Color.h"
@@ -28,8 +28,7 @@ namespace EDX
 		{
 		public:
 			virtual ~VertexShader() {}
-			virtual void Execute(const RenderState& renderState,
-				const Vector3& vPosIn,
+			virtual void Execute(const Vector3& vPosIn,
 				const Vector3& vNormalIn,
 				const Vector2& vTexIn,
 				ProjectedVertex* pOut) = 0;
@@ -38,13 +37,12 @@ namespace EDX
 		class DefaultVertexShader : public VertexShader
 		{
 		public:
-			virtual void Execute(const RenderState& renderState,
-				const Vector3& vPosIn,
+			virtual void Execute(const Vector3& vPosIn,
 				const Vector3& vNormalIn,
 				const Vector2& vTexIn,
 				ProjectedVertex* pOut)
 			{
-				pOut->projectedPos = Matrix::TransformPoint(Vector4(vPosIn.x, vPosIn.y, vPosIn.z, 1.0f), renderState.GetModelViewProjMatrix());
+				pOut->projectedPos = Matrix::TransformPoint(Vector4(vPosIn.x, vPosIn.y, vPosIn.z, 1.0f), RenderStates::Instance()->GetModelViewProjMatrix());
 				pOut->position = vPosIn;
 				pOut->normal = vNormalIn;
 				pOut->texCoord = vTexIn;
@@ -179,8 +177,7 @@ namespace EDX
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
 				const Vec3f_SSE& normal,
-				const Vec2f_SSE& texCoord,
-				RenderState& state) const = 0;
+				const Vec2f_SSE& texCoord) const = 0;
 		};
 
 		class LambertianPixelShader : public PixelShader
@@ -192,7 +189,7 @@ namespace EDX
 				const Vec3f_SSE& position,
 				const Vec3f_SSE& normal,
 				const Vec2f_SSE& texCoord,
-				RenderState& state) const
+				RenderStates& state) const
 			{
 				FloatSSE w = SSE::Rsqrt(Math::Dot(normal, normal));
 				Vec3f_SSE _normal = normal * w;
@@ -215,8 +212,7 @@ namespace EDX
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
 				const Vec3f_SSE& normal,
-				const Vec2f_SSE& texCoord,
-				RenderState& state) const
+				const Vec2f_SSE& texCoord) const
 			{
 				FloatSSE w = SSE::Rsqrt(Math::Dot(normal, normal));
 				Vec3f_SSE _normal = normal * w;
@@ -230,11 +226,11 @@ namespace EDX
 				const Vector2 differentials[2] = { Vector2(texCoord.u[1] - texCoord.u[0], texCoord.v[1] - texCoord.v[0]),
 					Vector2(texCoord.u[2] - texCoord.u[0], texCoord.v[2] - texCoord.v[0]) };
 
-				state.mTextureSlots[fragIn.textureId]->SetFilter(state.GetTextureFilter());
+				RenderStates::Instance()->TextureSlots[fragIn.textureId]->SetFilter(RenderStates::Instance()->GetTextureFilter());
 				Vec3f_SSE Albedo;
 				for (auto i = 0; i < 4; i++)
 				{
-					Color color = state.mTextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]), differentials);
+					Color color = RenderStates::Instance()->TextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]), differentials);
 					Albedo.x[i] = color.r;
 					Albedo.y[i] = color.g;
 					Albedo.z[i] = color.b;
@@ -253,8 +249,7 @@ namespace EDX
 				const Vector3& lightDir,
 				const Vec3f_SSE& position,
 				const Vec3f_SSE& normal,
-				const Vec2f_SSE& texCoord,
-				RenderState& state) const
+				const Vec2f_SSE& texCoord) const
 			{
 				FloatSSE w = SSE::Rsqrt(Math::Dot(normal, normal));
 				Vec3f_SSE _normal = normal * w;

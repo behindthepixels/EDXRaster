@@ -30,7 +30,7 @@
     <ClInclude Include="Core\Rasterizer.h" />
     <ClInclude Include="Core\RasterTriangle.h" />
     <ClInclude Include="Core\Renderer.h" />
-    <ClInclude Include="Core\RenderState.h" />
+    <ClInclude Include="Core\RenderStates.h" />
     <ClInclude Include="Core\Scene.h" />
     <ClInclude Include="Core\Shader.h" />
     <ClInclude Include="Core\Tile.h" />

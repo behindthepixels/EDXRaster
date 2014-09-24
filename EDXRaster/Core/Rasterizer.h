@@ -13,7 +13,6 @@ namespace EDX
 		{
 		private:
 			FrameBuffer* mpFrameBuffer;
-			int mNumCores;
 			vector<ProjectedVertex>& mProjectedVertexBuf;
 			const Vec2i_SSE mCenterOffset;
 
@@ -23,7 +22,6 @@ namespace EDX
 				, mProjectedVertexBuf(vb)
 				, mCenterOffset(Vec2i_SSE(IntSSE(8, 24, 8, 24), IntSSE(8, 8, 24, 24)))
 			{
-				mNumCores = DetectCPUCount();
 			}
 
 			virtual ~Rasterizer()

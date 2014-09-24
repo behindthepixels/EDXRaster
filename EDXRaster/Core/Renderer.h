@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RenderState.h"
+#include "RenderStates.h"
 #include "Shader.h"
 #include "RasterTriangle.h"
 #include "Tile.h"
@@ -16,7 +16,6 @@ namespace EDX
 		class Renderer
 		{
 		private:
-			RenderState mGlobalRenderStates;
 			RefPtr<class FrameBuffer> mpFrameBuffer;
 			RefPtr<class Rasterizer> mpRasterizer;
 			RefPtr<class VertexShader> mpVertexShader;
@@ -32,8 +31,6 @@ namespace EDX
 			Vector2i mTileDim;
 
 			int mNumCores;
-			int mFrameCount;
-			bool mHierarchicalRasterize;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
@@ -43,8 +40,8 @@ namespace EDX
 
 			const _byte* GetBackBuffer() const;
 			void SetMSAAMode(const int msaaCountLog2);
-			void SetTextureFilter(const TextureFilter filter) { mGlobalRenderStates.mTexFilter = filter; }
-			void SetHierarchicalRasterize(const bool hRas) { mHierarchicalRasterize = hRas; }
+			void SetTextureFilter(const TextureFilter filter) { RenderStates::Instance()->TexFilter = filter; }
+			void SetHierarchicalRasterize(const bool hRas) { RenderStates::Instance()->HierarchicalRasterize = hRas; }
 
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);

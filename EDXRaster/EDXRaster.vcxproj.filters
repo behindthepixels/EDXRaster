@@ -59,13 +59,13 @@
     <ClInclude Include="Core\RasterTriangle.h">
       <Filter>Source Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="Core\RenderState.h">
-      <Filter>Source Files\Core</Filter>
-    </ClInclude>
     <ClInclude Include="Core\Rasterizer.h">
       <Filter>Source Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="Core\Tile.h">
+      <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\RenderStates.h">
       <Filter>Source Files\Core</Filter>
     </ClInclude>
   </ItemGroup>

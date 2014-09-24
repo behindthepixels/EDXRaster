@@ -15,18 +15,20 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
+		RenderStates* RenderStates::mpInstance = nullptr;
+
 		void Renderer::Initialize(uint iScreenWidth, uint iScreenHeight)
 		{
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 
-			mGlobalRenderStates.mTexFilter = TextureFilter::TriLinear;
-			mGlobalRenderStates.mSampleCountLog2 = 0;
+			RenderStates::Instance()->TexFilter = TextureFilter::TriLinear;
+			RenderStates::Instance()->SampleCountLog2 = 0;
 			if (!mpFrameBuffer)
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, mGlobalRenderStates.mSampleCountLog2);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->SampleCountLog2);
 
 			if (!mpScene)
 			{
@@ -49,9 +51,6 @@ namespace EDX
 			}
 
 			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mProjectedVertexBuf);
-
-			mHierarchicalRasterize = true;
-			mFrameCount = 0;
 			mNumCores = DetectCPUCount();
 		}
 
@@ -60,7 +59,7 @@ namespace EDX
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 
-			mpFrameBuffer->Resize(iScreenWidth, iScreenHeight, mTileDim, mGlobalRenderStates.mSampleCountLog2);
+			mpFrameBuffer->Resize(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->SampleCountLog2);
 
 			mTiles.clear();
 			int tId = 0;
@@ -78,23 +77,23 @@ namespace EDX
 
 		void Renderer::SetTransform(const Matrix& mModelView, const Matrix& mProj, const Matrix& mToRaster)
 		{
-			mGlobalRenderStates.mModelViewMatrix = mModelView;
-			mGlobalRenderStates.mModelViewInvMatrix = Matrix::Inverse(mModelView);
-			mGlobalRenderStates.mProjMatrix = mProj;
-			mGlobalRenderStates.mModelViewProjMatrix = mProj * mModelView;
-			mGlobalRenderStates.mRasterMatrix = mToRaster;
+			RenderStates::Instance()->ModelViewMatrix = mModelView;
+			RenderStates::Instance()->ModelViewInvMatrix = Matrix::Inverse(mModelView);
+			RenderStates::Instance()->ProjMatrix = mProj;
+			RenderStates::Instance()->ModelViewProjMatrix = mProj * mModelView;
+			RenderStates::Instance()->RasterMatrix = mToRaster;
 		}
 
 		void Renderer::SetMSAAMode(const int sampleCountLog2)
 		{
-			mGlobalRenderStates.mSampleCountLog2 = sampleCountLog2;
+			RenderStates::Instance()->SampleCountLog2 = sampleCountLog2;
 			Resize(mpFrameBuffer->GetWidth(), mpFrameBuffer->GetHeight());
 		}
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
 			mpFrameBuffer->Clear();
-			mGlobalRenderStates.mTextureSlots = mesh.GetTextures();
+			RenderStates::Instance()->TextureSlots = mesh.GetTextures();
 
 			VertexProcessing(mesh.GetVertexBuffer());
 			Clipping(mesh.GetIndexBuffer(), mesh.GetTextureIds());
@@ -102,7 +101,7 @@ namespace EDX
 			FragmentProcessing();
 			UpdateFrameBuffer();
 
-			mFrameCount++;
+			RenderStates::Instance()->FrameCount++;
 		}
 
 		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
@@ -110,14 +109,14 @@ namespace EDX
 			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
 			parallel_for(0, (int)pVertexBuf->GetVertexCount(), [&](int i)
 			{
-				mpVertexShader->Execute(mGlobalRenderStates, pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
+				mpVertexShader->Execute(pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
 			});
 		}
 
 		void Renderer::Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf)
 		{
 			mRasterTriangleBuf.clear();
-			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, mGlobalRenderStates.GetRasterMatrix(), mRasterTriangleBuf);
+			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, RenderStates::Instance()->GetRasterMatrix(), mRasterTriangleBuf);
 
 			parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
 			{
@@ -241,7 +240,7 @@ namespace EDX
 						continue;
 					}
 
-					if (mHierarchicalRasterize)
+					if (RenderStates::Instance()->HierarchicalRasterize)
 						mpRasterizer->CoarseRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
 					else
 						mpRasterizer->FineRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
@@ -267,12 +266,11 @@ namespace EDX
 				frag.Interpolate(v0, v1, v2, frag.lambda0, frag.lambda1, position, normal, texCoord);
 
 				Vec3f_SSE shadingResults = mpPixelShader->Shade(frag,
-					Matrix::TransformPoint(Vector3::ZERO, mGlobalRenderStates.GetModelViewInvMatrix()),
+					Matrix::TransformPoint(Vector3::ZERO, RenderStates::Instance()->GetModelViewInvMatrix()),
 					Vector3(1, 1, -1),
 					position,
 					normal,
-					texCoord,
-					mGlobalRenderStates);
+					texCoord);
 
 				Color4b colorByte[4];
 				colorByte[0].FromFloats(shadingResults.x[0], shadingResults.y[0], shadingResults.z[0]);
