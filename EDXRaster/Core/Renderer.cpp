@@ -208,7 +208,8 @@ namespace EDX
 								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i,
 									tri.EdgeFunc0(acptCorner0) >= 0,
 									tri.EdgeFunc1(acptCorner1) >= 0,
-									tri.EdgeFunc2(acptCorner2) >= 0));
+									tri.EdgeFunc2(acptCorner2) >= 0,
+									true));
 							}
 						}
 					}
@@ -246,7 +247,7 @@ namespace EDX
 						continue;
 					}
 
-					if (RenderStates::Instance()->HierarchicalRasterize)
+					if (RenderStates::Instance()->HierarchicalRasterize && triRef.big)
 						mpRasterizer->CoarseRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);
 					else
 						mpRasterizer->FineRasterize(tile, triRef, Tile::SIZE, tile.minCoord, tile.maxCoord, tri);

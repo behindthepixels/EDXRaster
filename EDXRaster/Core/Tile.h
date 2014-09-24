@@ -19,9 +19,10 @@ namespace EDX
 				bool acceptEdge1;
 				bool acceptEdge2;
 				bool trivialAccept;
+				bool big;
 
-				TriangleRef(uint id, bool acptE0 = false, bool acptE1 = false, bool acptE2 = false)
-					: triId(id), acceptEdge0(acptE0), acceptEdge1(acptE1), acceptEdge2(acptE2), trivialAccept(false)
+				TriangleRef(uint id, bool acptE0 = false, bool acptE1 = false, bool acptE2 = false, bool _big = false)
+					: triId(id), acceptEdge0(acptE0), acceptEdge1(acptE1), acceptEdge2(acptE2), trivialAccept(false), big(_big)
 				{
 					if (acceptEdge0 && acceptEdge1 && acceptEdge2)
 						trivialAccept = true;
