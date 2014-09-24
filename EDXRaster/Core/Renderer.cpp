@@ -21,11 +21,11 @@ namespace EDX
 
 		void Renderer::Initialize(uint iScreenWidth, uint iScreenHeight)
 		{
+			RenderStates::Instance()->DefaultSettings();
+
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 
-			RenderStates::Instance()->TexFilter = TextureFilter::TriLinear;
-			RenderStates::Instance()->SampleCountLog2 = 0;
 			if (!mpFrameBuffer)
 			{
 				mpFrameBuffer = new FrameBuffer;

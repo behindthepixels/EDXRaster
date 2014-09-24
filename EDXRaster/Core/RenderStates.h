@@ -28,7 +28,10 @@ namespace EDX
 			vector<RefPtr<Texture2D<Color>>> TextureSlots;
 
 		private:
-			RenderStates() {}
+			RenderStates()
+				: FrameCount(0)
+			{
+			}
 			static RenderStates* mpInstance;
 
 		public:
@@ -49,6 +52,14 @@ namespace EDX
 			}
 
 		public:
+			void DefaultSettings()
+			{
+				SampleCountLog2 = 0;
+				BackFaceCull = true;
+				HierarchicalRasterize = false;
+				TexFilter = TextureFilter::TriLinear;
+			}
+
 			const Matrix& GetModelViewProjMatrix() const { return ModelViewProjMatrix; }
 			const Matrix& GetModelViewMatrix() const { return ModelViewMatrix; }
 			const Matrix& GetModelViewInvMatrix() const { return ModelViewInvMatrix; }
