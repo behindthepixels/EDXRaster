@@ -18,7 +18,7 @@ int giWindowHeight = 720;
 
 int gTexFilterId = 2;
 int gMSAAId = 0;
-bool gHRas = false;
+bool gHRas = true;
 bool gRecord = false;
 
 // Global variables

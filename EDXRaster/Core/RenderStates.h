@@ -18,7 +18,7 @@ namespace EDX
 			Matrix ModelViewProjMatrix;
 			Matrix RasterMatrix;
 
-			uint SampleCountLog2;
+			uint MultiSampleLevel;
 			bool BackFaceCull;
 			TextureFilter TexFilter;
 
@@ -54,9 +54,9 @@ namespace EDX
 		public:
 			void DefaultSettings()
 			{
-				SampleCountLog2 = 0;
+				MultiSampleLevel = 0;
 				BackFaceCull = true;
-				HierarchicalRasterize = false;
+				HierarchicalRasterize = true;
 				TexFilter = TextureFilter::TriLinear;
 			}
 

@@ -30,7 +30,7 @@ namespace EDX
 			{
 				mpFrameBuffer = new FrameBuffer;
 			}
-			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->SampleCountLog2);
+			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->MultiSampleLevel);
 
 			if (!mpScene)
 			{
@@ -62,7 +62,7 @@ namespace EDX
 			mTileDim.x = (iScreenWidth + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 			mTileDim.y = (iScreenHeight + Tile::SIZE - 1) >> Tile::SIZE_LOG_2;
 
-			mpFrameBuffer->Resize(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->SampleCountLog2);
+			mpFrameBuffer->Resize(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->MultiSampleLevel);
 
 			mTiles.clear();
 			int tId = 0;
@@ -89,7 +89,7 @@ namespace EDX
 
 		void Renderer::SetMSAAMode(const int sampleCountLog2)
 		{
-			RenderStates::Instance()->SampleCountLog2 = sampleCountLog2;
+			RenderStates::Instance()->MultiSampleLevel = sampleCountLog2;
 			Resize(mpFrameBuffer->GetWidth(), mpFrameBuffer->GetHeight());
 		}
 
@@ -162,7 +162,7 @@ namespace EDX
 					int minY = Math::Max(0, Math::Min(tri.v0.y, Math::Min(tri.v1.y, tri.v2.y)) >> Shift);
 					int maxY = Math::Min(mTileDim.y - 1, Math::Max(tri.v0.y, Math::Max(tri.v1.y, tri.v2.y)) >> Shift);
 
-					if (maxX - minX <= 2 && maxY - minY <= 2)
+					if (maxX - minX < 2 && maxY - minY < 2)
 					{
 						for (auto y = minY; y <= maxY; y++)
 						{
