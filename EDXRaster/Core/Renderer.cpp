@@ -8,6 +8,7 @@
 #include "../Utils/InputBuffer.h"
 #include "Math/Matrix.h"
 #include "Windows/Bitmap.h"
+#include "Windows/Application.h"
 
 #include <ppl.h>
 using namespace concurrency;
@@ -53,6 +54,7 @@ namespace EDX
 
 			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mProjectedVertexBuf);
 			mNumCores = DetectCPUCount();
+			mWriteFrames = false;
 		}
 
 		void Renderer::Resize(uint iScreenWidth, uint iScreenHeight)
@@ -102,7 +104,9 @@ namespace EDX
 			FragmentProcessing();
 			UpdateFrameBuffer();
 
-			WriteFrameToFile();
+			if (mWriteFrames)
+				WriteFrameToFile();
+
 			RenderStates::Instance()->FrameCount++;
 		}
 
@@ -333,8 +337,8 @@ namespace EDX
 
 		void Renderer::WriteFrameToFile() const
 		{
-			char fileName[256];
-			sprintf_s(fileName, 256, "../Frames/Frame%04i.bmp", RenderStates::Instance()->FrameCount);
+			char fileName[MAX_PATH];
+			sprintf_s(fileName, MAX_PATH, "%s/Frames/Frame%05i.bmp", Application::GetBaseDirectory(), RenderStates::Instance()->FrameCount);
 
 			Bitmap::SaveBitmapFile(fileName, GetBackBuffer(), mpFrameBuffer->GetWidth(), mpFrameBuffer->GetHeight());
 		}

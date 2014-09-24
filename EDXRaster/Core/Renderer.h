@@ -31,6 +31,7 @@ namespace EDX
 			Vector2i mTileDim;
 
 			int mNumCores;
+			bool mWriteFrames;
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);
@@ -43,6 +44,7 @@ namespace EDX
 			void SetMSAAMode(const int msaaCountLog2);
 			void SetTextureFilter(const TextureFilter filter) { RenderStates::Instance()->TexFilter = filter; }
 			void SetHierarchicalRasterize(const bool hRas) { RenderStates::Instance()->HierarchicalRasterize = hRas; }
+			void SetWriteFrames(const bool wf) { mWriteFrames = wf; }
 
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
