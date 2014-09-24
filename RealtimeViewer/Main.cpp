@@ -67,11 +67,12 @@ void OnInit(Object* pSender, EventArgs args)
 
 	ComboBoxItem AAItems[] = {
 			{ 0, "MSAA: off" },
-			{ 1, "MSAA: 4x" },
-			{ 2, "MSAA: 8x" },
-			{ 3, "MSAA: 16x" }
+			{ 1, "MSAA: 2x" },
+			{ 2, "MSAA: 4x" },
+			{ 3, "MSAA: 8x" },
+			{ 4, "MSAA: 16x" }
 	};
-	gDialog.AddComboBox(4, gMSAAId, &gMSAAId, AAItems, 4);
+	gDialog.AddComboBox(4, gMSAAId, &gMSAAId, AAItems, 5);
 
 	ComboBoxItem FilterItems[] = {
 			{ 0, "Nearst" },
@@ -169,6 +170,9 @@ void OnMouseEvent(Object* pSender, MouseEventArgs args)
 
 void OnKeyboardEvent(Object* pSender, KeyboardEventArgs args)
 {
+	if (args.key == 'U')
+		gDialog.ToggleVisible();
+
 	gCamera.HandleKeyboardMsg(args);
 }
 
