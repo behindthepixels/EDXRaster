@@ -68,7 +68,12 @@ namespace EDX
 			}
 
 		public:
-			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf, const Matrix& rasterMatrix, vector<ProjectedVertex>* projVertex, vector<RasterTriangle>* trianglesBuf, int numCores)
+			static void Clip(vector<ProjectedVertex>& vertexBufferIn,
+				const IndexBuffer* pIndexBuf,
+				const vector<uint>& texIdBuf,
+				vector<ProjectedVertex>* pProjVertices,
+				vector<RasterTriangle>* pTrianglesBuf,
+				int numCores)
 			{
 				concurrency::parallel_for(0, numCores, [&](int coreId)
 				{
@@ -76,7 +81,7 @@ namespace EDX
 					auto startIdx = coreId * interval;
 					auto endIdx = (coreId + 1) * interval;
 
-					auto& currentVertexBuf = projVertex[coreId];
+					auto& currentVertexBuf = pProjVertices[coreId];
 
 					for (auto i = startIdx; i < endIdx; i++)
 					{
@@ -84,19 +89,16 @@ namespace EDX
 							return;
 
 						const uint* pIndex = pIndexBuf->GetIndex(i);
-						int idx0 = pIndex[0], idx1 = pIndex[1], idx2 = pIndex[2];
-						const Vector4& v0 = verticesIn[idx0].projectedPos;
-						const Vector4& v1 = verticesIn[idx1].projectedPos;
-						const Vector4& v2 = verticesIn[idx2].projectedPos;
+						const Vector4& v0 = vertexBufferIn[pIndex[0]].projectedPos;
+						const Vector4& v1 = vertexBufferIn[pIndex[1]].projectedPos;
+						const Vector4& v2 = vertexBufferIn[pIndex[2]].projectedPos;
 						const uint texId = texIdBuf[i];
-						currentVertexBuf.push_back(verticesIn[idx0]);
-						idx0 = currentVertexBuf.size() - 1;
-						currentVertexBuf.push_back(verticesIn[idx1]);
-						idx1 = currentVertexBuf.size() - 1;
-						currentVertexBuf.push_back(verticesIn[idx2]);
-						idx2 = currentVertexBuf.size() - 1;
-
-						const uint index[3] = { idx0, idx1, idx2 };
+						int idx0 = currentVertexBuf.size();
+						currentVertexBuf.push_back(vertexBufferIn[pIndex[0]]);
+						int idx1 = currentVertexBuf.size();
+						currentVertexBuf.push_back(vertexBufferIn[pIndex[1]]);
+						int idx2 = currentVertexBuf.size();
+						currentVertexBuf.push_back(vertexBufferIn[pIndex[2]]);
 
 						uint clipCode0 = ComputeClipCode(v0);
 						uint clipCode1 = ComputeClipCode(v1);
@@ -161,10 +163,9 @@ namespace EDX
 										currentVertexBuf[clipVertIds[k]].projectedPos.HomogeneousProject(),
 										idx,
 										coreId,
-										texId,
-										rasterMatrix))
+										texId))
 									{
-										trianglesBuf[coreId].push_back(tri);
+										pTrianglesBuf[coreId].push_back(tri);
 									}
 								}
 							}
@@ -172,16 +173,16 @@ namespace EDX
 							continue;
 						}
 
+						const uint index[3] = { idx0, idx1, idx2 };
 						RasterTriangle tri;
 						if (tri.Setup(currentVertexBuf[idx0].projectedPos.HomogeneousProject(),
 							currentVertexBuf[idx1].projectedPos.HomogeneousProject(),
 							currentVertexBuf[idx2].projectedPos.HomogeneousProject(),
 							index,
 							coreId,
-							texId,
-							rasterMatrix))
+							texId))
 						{
-							trianglesBuf[coreId].push_back(tri);
+							pTrianglesBuf[coreId].push_back(tri);
 						}
 					}
 				});

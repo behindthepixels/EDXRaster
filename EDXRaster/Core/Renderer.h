@@ -23,8 +23,8 @@ namespace EDX
 			RefPtr<class Scene> mpScene;
 
 			vector<ProjectedVertex> mProjectedVertexBuf;
-			vector<ProjectedVertex>* mDistributedProjVertexBuf;
-			vector<RasterTriangle>* mRasterTriangleBuf;
+			vector<ProjectedVertex>* mpDistributedProjVertexBuf;
+			vector<RasterTriangle>* mpRasterTriangleBuf;
 			vector<Fragment> mFragmentBuf;
 			vector<vector<IntSSE>> mTiledShadingResultBuf;
 
@@ -33,6 +33,9 @@ namespace EDX
 
 			int mNumCores;
 			bool mWriteFrames;
+
+		public:
+			~Renderer();
 
 		public:
 			void Initialize(uint iScreenWidth, uint iScreenHeight);

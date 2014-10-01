@@ -24,8 +24,9 @@ namespace EDX
 			float lambda0, lambda1; // Barycentric coordinates
 
 
-			bool Setup(Vector3& a, Vector3& b, Vector3& c, const uint* pIdx, const uint cId, const uint texId, const Matrix& rasterMatrix)
+			bool Setup(Vector3& a, Vector3& b, Vector3& c, const uint* pIdx, const uint cId, const uint texId)
 			{
+				const Matrix& rasterMatrix = RenderStates::Instance()->GetRasterMatrix();
 				a = Matrix::TransformPoint(a, rasterMatrix);
 				b = Matrix::TransformPoint(b, rasterMatrix);
 				c = Matrix::TransformPoint(c, rasterMatrix);
@@ -190,7 +191,7 @@ namespace EDX
 
 			__forceinline void GenStepVectors(const int stepSize, Vec3i_SSE* pRejStepVec, Vec3i_SSE* pAcceptStepVec) const
 			{
-				auto Func = [&](int cornerIdx, IntSSE& out)
+				auto StepFunc = [&](int cornerIdx, IntSSE& out)
 				{
 					switch (cornerIdx)
 					{
@@ -208,7 +209,7 @@ namespace EDX
 						break;
 					}
 				};
-				auto Func1 = [&](int cornerIdx, IntSSE& out)
+				auto StepFunc1 = [&](int cornerIdx, IntSSE& out)
 				{
 					switch (cornerIdx)
 					{
@@ -226,7 +227,7 @@ namespace EDX
 						break;
 					}
 				};
-				auto Func2 = [&](int cornerIdx, IntSSE& out)
+				auto StepFunc2 = [&](int cornerIdx, IntSSE& out)
 				{
 					switch (cornerIdx)
 					{
@@ -245,12 +246,12 @@ namespace EDX
 					}
 				};
 
-				Func(rejectCorner0, pRejStepVec->x);
-				Func1(rejectCorner1, pRejStepVec->y);
-				Func2(rejectCorner2, pRejStepVec->z);
-				Func(acceptCorner0, pAcceptStepVec->x);
-				Func1(acceptCorner1, pAcceptStepVec->y);
-				Func2(acceptCorner2, pAcceptStepVec->z);
+				StepFunc(rejectCorner0, pRejStepVec->x);
+				StepFunc1(rejectCorner1, pRejStepVec->y);
+				StepFunc2(rejectCorner2, pRejStepVec->z);
+				StepFunc(acceptCorner0, pAcceptStepVec->x);
+				StepFunc1(acceptCorner1, pAcceptStepVec->y);
+				StepFunc2(acceptCorner2, pAcceptStepVec->z);
 			}
 		};
 

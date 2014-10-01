@@ -13,13 +13,13 @@ namespace EDX
 		{
 		private:
 			FrameBuffer* mpFrameBuffer;
-			vector<ProjectedVertex>* mDistributedProjVertexBuf;
+			vector<ProjectedVertex>* mpDistProjVertexBuf_Ref;
 			const Vec2i_SSE mCenterOffset;
 
 		public:
 			Rasterizer(FrameBuffer* pFB, vector<ProjectedVertex>* vb)
 				: mpFrameBuffer(pFB)
-				, mDistributedProjVertexBuf(vb)
+				, mpDistProjVertexBuf_Ref(vb)
 				, mCenterOffset(Vec2i_SSE(IntSSE(8, 24, 8, 24), IntSSE(8, 8, 24, 24)))
 			{
 			}
@@ -165,9 +165,9 @@ namespace EDX
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
-							const ProjectedVertex& v0 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId0];
-							const ProjectedVertex& v1 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId1];
-							const ProjectedVertex& v2 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId2];
+							const ProjectedVertex& v0 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId0];
+							const ProjectedVertex& v1 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId1];
+							const ProjectedVertex& v2 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId2];
 
 							BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, 0, covered);
 							BoolSSE visible = zTest & covered;
@@ -256,9 +256,9 @@ namespace EDX
 								Vec2i_SSE samplePos = pixelCenter + sampleOffset;
 								triSSE.CalcBarycentricCoord(samplePos.x, samplePos.y);
 
-								const ProjectedVertex& v0 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId0];
-								const ProjectedVertex& v1 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId1];
-								const ProjectedVertex& v2 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId2];
+								const ProjectedVertex& v0 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId0];
+								const ProjectedVertex& v1 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId1];
+								const ProjectedVertex& v2 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId2];
 
 								BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, covered);
 								BoolSSE visible = zTest & covered;
@@ -329,9 +329,9 @@ namespace EDX
 						Vec2i_SSE pixelCenter = pixelBase + mCenterOffset;
 						triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
-						const ProjectedVertex& v0 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId0];
-						const ProjectedVertex& v1 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId1];
-						const ProjectedVertex& v2 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId2];
+						const ProjectedVertex& v0 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId0];
+						const ProjectedVertex& v1 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId1];
+						const ProjectedVertex& v2 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId2];
 
 						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, 0, BoolSSE(Constants::EDX_TRUE));
 						if (SSE::Any(zTest))
@@ -383,9 +383,9 @@ namespace EDX
 							Vec2i_SSE samplePos = pixelCenter + sampleOffset;
 							triSSE.CalcBarycentricCoord(samplePos.x, samplePos.y);
 
-							const ProjectedVertex& v0 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId0];
-							const ProjectedVertex& v1 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId1];
-							const ProjectedVertex& v2 = mDistributedProjVertexBuf[triSSE.coreId][triSSE.vId2];
+							const ProjectedVertex& v0 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId0];
+							const ProjectedVertex& v1 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId1];
+							const ProjectedVertex& v2 = mpDistProjVertexBuf_Ref[triSSE.coreId][triSSE.vId2];
 
 							BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, sampleId, BoolSSE(Constants::EDX_TRUE));
 							if (SSE::Any(zTest))

@@ -55,10 +55,10 @@ namespace EDX
 			mNumCores = DetectCPUCount();
 			mWriteFrames = false;
 
-			mDistributedProjVertexBuf = new vector<ProjectedVertex>[mNumCores];
-			mRasterTriangleBuf = new vector<RasterTriangle>[mNumCores];
+			mpDistributedProjVertexBuf = new vector<ProjectedVertex>[mNumCores];
+			mpRasterTriangleBuf = new vector<RasterTriangle>[mNumCores];
 
-			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mDistributedProjVertexBuf);
+			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mpDistributedProjVertexBuf);
 		}
 
 		void Renderer::Resize(uint iScreenWidth, uint iScreenHeight)
@@ -99,7 +99,10 @@ namespace EDX
 
 		void Renderer::RenderMesh(const Mesh& mesh)
 		{
+			// Clear framebuffer
 			mpFrameBuffer->Clear();
+
+			// Set texture index
 			RenderStates::Instance()->TextureSlots = mesh.GetTextures();
 
 			VertexProcessing(mesh.GetVertexBuffer());
@@ -125,23 +128,23 @@ namespace EDX
 
 		void Renderer::Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf)
 		{
-			for (auto coreId = 0; coreId < mNumCores; coreId++)
+			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				mDistributedProjVertexBuf[coreId].clear();
-				mRasterTriangleBuf[coreId].clear();
-			}
+				mpDistributedProjVertexBuf[coreId].clear();
+				mpRasterTriangleBuf[coreId].clear();
+			});
 
-			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, RenderStates::Instance()->GetRasterMatrix(), mDistributedProjVertexBuf, mRasterTriangleBuf, mNumCores);
+			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, mpDistributedProjVertexBuf, mpRasterTriangleBuf, mNumCores);
 
-			for (auto coreId = 0; coreId < mNumCores; coreId++)
+			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				parallel_for(0, (int)mDistributedProjVertexBuf[coreId].size(), [&](int i)
+				for (auto i = 0; i < mpDistributedProjVertexBuf[coreId].size(); i++)
 				{
-					ProjectedVertex& vertex = mDistributedProjVertexBuf[coreId][i];
+					ProjectedVertex& vertex = mpDistributedProjVertexBuf[coreId][i];
 					vertex.invW = 1.0f / vertex.projectedPos.w;
 					vertex.projectedPos.z *= vertex.invW;
-				});
-			}
+				}
+			});
 		}
 
 		void Renderer::TiledRasterization()
@@ -158,9 +161,9 @@ namespace EDX
 			const int Shift = Tile::SIZE_LOG_2 + 4;
 			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				for (auto i = 0; i < mRasterTriangleBuf[coreId].size(); i++)
+				for (auto i = 0; i < mpRasterTriangleBuf[coreId].size(); i++)
 				{
-					const RasterTriangle& tri = mRasterTriangleBuf[coreId][i];
+					const RasterTriangle& tri = mpRasterTriangleBuf[coreId][i];
 
 					int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> Shift);
 					int maxX = Math::Min(mTileDim.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
@@ -172,9 +175,7 @@ namespace EDX
 						for (auto y = minY; y <= maxY; y++)
 						{
 							for (auto x = minX; x <= maxX; x++)
-							{
 								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i));
-							}
 						}
 					}
 					else
@@ -189,11 +190,14 @@ namespace EDX
 								const Vector2i rejCornerOffset1 = Vector2i(tri.rejectCorner1 % 2, tri.rejectCorner1 / 2);
 								const Vector2i rejCornerOffset2 = Vector2i(tri.rejectCorner2 % 2, tri.rejectCorner2 / 2);
 
-								const Vector2i rejCorner0 = Vector2i((pixelBase.x + rejCornerOffset0.x) << Shift,
+								const Vector2i rejCorner0 = Vector2i(
+									(pixelBase.x + rejCornerOffset0.x) << Shift,
 									(pixelBase.y + rejCornerOffset0.y) << Shift);
-								const Vector2i rejCorner1 = Vector2i((pixelBase.x + rejCornerOffset1.x) << Shift,
+								const Vector2i rejCorner1 = Vector2i(
+									(pixelBase.x + rejCornerOffset1.x) << Shift,
 									(pixelBase.y + rejCornerOffset1.y) << Shift);
-								const Vector2i rejCorner2 = Vector2i((pixelBase.x + rejCornerOffset2.x) << Shift,
+								const Vector2i rejCorner2 = Vector2i(
+									(pixelBase.x + rejCornerOffset2.x) << Shift,
 									(pixelBase.y + rejCornerOffset2.y) << Shift);
 
 								if (tri.EdgeFunc0(rejCorner0) < 0 || tri.EdgeFunc1(rejCorner1) < 0 || tri.EdgeFunc2(rejCorner2) < 0)
@@ -203,11 +207,14 @@ namespace EDX
 								const Vector2i acptCornerOffset1 = Vector2i(tri.acceptCorner1 % 2, tri.acceptCorner1 / 2);
 								const Vector2i acptCornerOffset2 = Vector2i(tri.acceptCorner2 % 2, tri.acceptCorner2 / 2);
 
-								const Vector2i acptCorner0 = Vector2i((pixelBase.x + acptCornerOffset0.x) << Shift,
+								const Vector2i acptCorner0 = Vector2i(
+									(pixelBase.x + acptCornerOffset0.x) << Shift,
 									(pixelBase.y + acptCornerOffset0.y) << Shift);
-								const Vector2i acptCorner1 = Vector2i((pixelBase.x + acptCornerOffset1.x) << Shift,
+								const Vector2i acptCorner1 = Vector2i(
+									(pixelBase.x + acptCornerOffset1.x) << Shift,
 									(pixelBase.y + acptCornerOffset1.y) << Shift);
-								const Vector2i acptCorner2 = Vector2i((pixelBase.x + acptCornerOffset2.x) << Shift,
+								const Vector2i acptCorner2 = Vector2i(
+									(pixelBase.x + acptCornerOffset2.x) << Shift,
 									(pixelBase.y + acptCornerOffset2.y) << Shift);
 
 								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i,
@@ -244,7 +251,7 @@ namespace EDX
 				for (auto j = 0; j < tile.triangleRefs[coreId].size(); j++)
 				{
 					const Tile::TriangleRef& triRef = tile.triangleRefs[coreId][j];
-					RasterTriangle& tri = mRasterTriangleBuf[coreId][triRef.triId];
+					RasterTriangle& tri = mpRasterTriangleBuf[coreId][triRef.triId];
 
 					if (triRef.trivialAccept)
 					{
@@ -268,9 +275,9 @@ namespace EDX
 			{
 				Fragment& frag = mFragmentBuf[i];
 
-				const ProjectedVertex& v0 = mDistributedProjVertexBuf[frag.coreId][frag.vId0];
-				const ProjectedVertex& v1 = mDistributedProjVertexBuf[frag.coreId][frag.vId1];
-				const ProjectedVertex& v2 = mDistributedProjVertexBuf[frag.coreId][frag.vId2];
+				const ProjectedVertex& v0 = mpDistributedProjVertexBuf[frag.coreId][frag.vId0];
+				const ProjectedVertex& v1 = mpDistributedProjVertexBuf[frag.coreId][frag.vId1];
+				const ProjectedVertex& v2 = mpDistributedProjVertexBuf[frag.coreId][frag.vId2];
 
 				Vec3f_SSE position;
 				Vec3f_SSE normal;
@@ -352,6 +359,12 @@ namespace EDX
 		const _byte* Renderer::GetBackBuffer() const
 		{
 			return mpFrameBuffer->GetColorBuffer();
+		}
+
+		Renderer::~Renderer()
+		{
+			SafeDeleteArray(mpDistributedProjVertexBuf);
+			SafeDeleteArray(mpRasterTriangleBuf);
 		}
 	}
 }
