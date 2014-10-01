@@ -22,7 +22,7 @@ bool gHRas = true;
 bool gRecord = false;
 
 // Global variables
-RefPtr<Renderer>		gRenderer;
+RefPtr<Renderer>		gpRenderer;
 Camera			gCamera;
 Mesh			gMesh;
 EDXDialog		gDialog;
@@ -32,11 +32,11 @@ void GUIEvent(Object* pObject, EventArgs args);
 
 void OnInit(Object* pSender, EventArgs args)
 {
-	GL::LoadGLExtensions();
+	OpenGL::InitializeOpenGLExtensions();
 	glClearColor(0.4f, 0.5f, 0.65f, 1.0f);
 
-	gRenderer = new Renderer;
-	gRenderer->Initialize(giWindowWidth, giWindowHeight);
+	gpRenderer = new Renderer;
+	gpRenderer->Initialize(giWindowWidth, giWindowHeight);
 	gCamera.Init(-5.0f * Vector3::UNIT_Z, Vector3::ZERO, Vector3::UNIT_Y, giWindowWidth, giWindowHeight, 65, 0.01f);
 
 	//gMesh.LoadPlane(Vector3::ZERO, Vector3(1, 1, 1), Vector3(-90.0f, 0.0f, 0.0f), 1.2f);
@@ -95,11 +95,11 @@ void OnRender(Object* pSender, EventArgs args)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	gRenderer->SetTransform(gCamera.GetViewMatrix(), gCamera.GetProjMatrix(), gCamera.GetRasterMatrix());
-	gRenderer->RenderMesh(gMesh);
+	gpRenderer->SetTransform(gCamera.GetViewMatrix(), gCamera.GetProjMatrix(), gCamera.GetRasterMatrix());
+	gpRenderer->RenderMesh(gMesh);
 
 	glRasterPos3f(0.0f, 0.0f, 1.0f);
-	glDrawPixels(giWindowWidth, giWindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, gRenderer->GetBackBuffer());
+	glDrawPixels(giWindowWidth, giWindowHeight, GL_RGBA, GL_UNSIGNED_BYTE, gpRenderer->GetBackBuffer());
 
 	gTimer.MarkFrame();
 
@@ -148,7 +148,7 @@ void OnResize(Object* pSender, ResizeEventArgs args)
 	glMatrixMode(GL_MODELVIEW);
 
 	gCamera.Resize(args.Width, args.Height);
-	gRenderer->Resize(args.Width, args.Height);
+	gpRenderer->Resize(args.Width, args.Height);
 	gDialog.Resize(args.Width, args.Height);
 
 	giWindowWidth = args.Width;
@@ -157,7 +157,7 @@ void OnResize(Object* pSender, ResizeEventArgs args)
 
 void OnRelease(Object* pSender, EventArgs args)
 {
-	gRenderer.Dereference();
+	gpRenderer.Dereference();
 	gMesh.~Mesh();
 	gDialog.Release();
 }
@@ -184,19 +184,19 @@ void GUIEvent(Object* pObject, EventArgs args)
 	switch (pControl->GetID())
 	{
 	case 3:
-		gRenderer->SetHierarchicalRasterize(gHRas);
+		gpRenderer->SetHierarchicalRasterize(gHRas);
 		return;
 
 	case 4:
-		gRenderer->SetWriteFrames(gRecord);
+		gpRenderer->SetWriteFrames(gRecord);
 		return;
 
 	case 5:
-		gRenderer->SetMSAAMode(gMSAAId);
+		gpRenderer->SetMSAAMode(gMSAAId);
 		return;
 
 	case 6:
-		gRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
+		gpRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
 		return;
 
 	case 7:
