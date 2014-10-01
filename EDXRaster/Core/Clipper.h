@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EDXPrerequisites.h"
+#include <ppl.h>
 
 #define CLIP_ALL_PLANES 1
 
@@ -67,101 +68,123 @@ namespace EDX
 			}
 
 		public:
-			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf, const Matrix& rasterMatrix, vector<RasterTriangle>& trianglesBuf)
+			static void Clip(vector<ProjectedVertex>& verticesIn, const IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf, const Matrix& rasterMatrix, vector<ProjectedVertex>* projVertex, vector<RasterTriangle>* trianglesBuf, int numCores)
 			{
-				for (auto i = 0; i < pIndexBuf->GetTriangleCount(); i++)
+				concurrency::parallel_for(0, numCores, [&](int coreId)
 				{
-					const uint* pIndex = pIndexBuf->GetIndex(i);
-					int idx0 = pIndex[0], idx1 = pIndex[1], idx2 = pIndex[2];
-					const Vector4& v0 = verticesIn[idx0].projectedPos;
-					const Vector4& v1 = verticesIn[idx1].projectedPos;
-					const Vector4& v2 = verticesIn[idx2].projectedPos;
-					const uint texId = texIdBuf[i];
+					auto interval = (pIndexBuf->GetTriangleCount() + numCores - 1) / numCores;
+					auto startIdx = coreId * interval;
+					auto endIdx = (coreId + 1) * interval;
 
-					uint clipCode0 = ComputeClipCode(v0);
-					uint clipCode1 = ComputeClipCode(v1);
-					uint clipCode2 = ComputeClipCode(v2);
+					auto& currentVertexBuf = projVertex[coreId];
 
-					if ((clipCode0 | clipCode1 | clipCode2))
+					for (auto i = startIdx; i < endIdx; i++)
 					{
-						if (!(clipCode0 & clipCode1 & clipCode2))
+						if (i >= pIndexBuf->GetTriangleCount())
+							return;
+
+						const uint* pIndex = pIndexBuf->GetIndex(i);
+						int idx0 = pIndex[0], idx1 = pIndex[1], idx2 = pIndex[2];
+						const Vector4& v0 = verticesIn[idx0].projectedPos;
+						const Vector4& v1 = verticesIn[idx1].projectedPos;
+						const Vector4& v2 = verticesIn[idx2].projectedPos;
+						const uint texId = texIdBuf[i];
+						currentVertexBuf.push_back(verticesIn[idx0]);
+						idx0 = currentVertexBuf.size() - 1;
+						currentVertexBuf.push_back(verticesIn[idx1]);
+						idx1 = currentVertexBuf.size() - 1;
+						currentVertexBuf.push_back(verticesIn[idx2]);
+						idx2 = currentVertexBuf.size() - 1;
+
+						const uint index[3] = { idx0, idx1, idx2 };
+
+						uint clipCode0 = ComputeClipCode(v0);
+						uint clipCode1 = ComputeClipCode(v1);
+						uint clipCode2 = ComputeClipCode(v2);
+
+						if ((clipCode0 | clipCode1 | clipCode2))
 						{
-							int clipVertIds[12];
-
-							Polygon polygon0, polygon1;
-							polygon0.FromTriangle(v0, v1, v2);
-
-							Polygon* pCurrPoly = &polygon0;
-							Polygon* pbuffPoly = &polygon1;
-							ClipPolygon(pCurrPoly, pbuffPoly,
-								(clipCode0 ^ clipCode1) | (clipCode1 ^ clipCode2) | (clipCode2 ^ clipCode0));
-
-							for (int j = 0; j < pCurrPoly->vertices.size(); j++)
+							if (!(clipCode0 & clipCode1 & clipCode2))
 							{
-								Vector3 weight = pCurrPoly->vertices[j].clipWeights;
-								if (weight.x == 1.0f)
-								{
-									clipVertIds[j] = idx0;
-								}
-								else if (weight.y == 1.0f)
-								{
-									clipVertIds[j] = idx1;
-								}
-								else if (weight.z == 1.0f)
-								{
-									clipVertIds[j] = idx2;
-								}
-								else
-								{
-									clipVertIds[j] = verticesIn.size();
-									ProjectedVertex tmpVertex;
-									tmpVertex.projectedPos = pCurrPoly->vertices[j].pos;
-									tmpVertex.position = weight.x * verticesIn[idx0].position +
-										weight.y * verticesIn[idx1].position +
-										weight.z * verticesIn[idx2].position;
-									tmpVertex.normal = weight.x * verticesIn[idx0].normal +
-										weight.y * verticesIn[idx1].normal +
-										weight.z * verticesIn[idx2].normal;
-									tmpVertex.texCoord = weight.x * verticesIn[idx0].texCoord +
-										weight.y * verticesIn[idx1].texCoord +
-										weight.z * verticesIn[idx2].texCoord;
+								int clipVertIds[12];
 
-									verticesIn.push_back(tmpVertex);
+								Polygon polygon0, polygon1;
+								polygon0.FromTriangle(v0, v1, v2);
+
+								Polygon* pCurrPoly = &polygon0;
+								Polygon* pbuffPoly = &polygon1;
+								ClipPolygon(pCurrPoly, pbuffPoly,
+									(clipCode0 ^ clipCode1) | (clipCode1 ^ clipCode2) | (clipCode2 ^ clipCode0));
+
+								for (int j = 0; j < pCurrPoly->vertices.size(); j++)
+								{
+									Vector3 weight = pCurrPoly->vertices[j].clipWeights;
+									if (weight.x == 1.0f)
+									{
+										clipVertIds[j] = idx0;
+									}
+									else if (weight.y == 1.0f)
+									{
+										clipVertIds[j] = idx1;
+									}
+									else if (weight.z == 1.0f)
+									{
+										clipVertIds[j] = idx2;
+									}
+									else
+									{
+										clipVertIds[j] = currentVertexBuf.size();
+										ProjectedVertex tmpVertex;
+										tmpVertex.projectedPos = pCurrPoly->vertices[j].pos;
+										tmpVertex.position = weight.x * currentVertexBuf[idx0].position +
+											weight.y * currentVertexBuf[idx1].position +
+											weight.z * currentVertexBuf[idx2].position;
+										tmpVertex.normal = weight.x * currentVertexBuf[idx0].normal +
+											weight.y * currentVertexBuf[idx1].normal +
+											weight.z * currentVertexBuf[idx2].normal;
+										tmpVertex.texCoord = weight.x * currentVertexBuf[idx0].texCoord +
+											weight.y * currentVertexBuf[idx1].texCoord +
+											weight.z * currentVertexBuf[idx2].texCoord;
+
+										currentVertexBuf.push_back(tmpVertex);
+									}
+								}
+
+								// Simple triangulation
+								for (int k = 2; k < pCurrPoly->vertices.size(); k++)
+								{
+									uint idx[3] = { clipVertIds[0], clipVertIds[k - 1], clipVertIds[k] };
+
+									RasterTriangle tri;
+									if (tri.Setup(currentVertexBuf[clipVertIds[0]].projectedPos.HomogeneousProject(),
+										currentVertexBuf[clipVertIds[k - 1]].projectedPos.HomogeneousProject(),
+										currentVertexBuf[clipVertIds[k]].projectedPos.HomogeneousProject(),
+										idx,
+										coreId,
+										texId,
+										rasterMatrix))
+									{
+										trianglesBuf[coreId].push_back(tri);
+									}
 								}
 							}
 
-							// Simple triangulation
-							for (int k = 2; k < pCurrPoly->vertices.size(); k++)
-							{
-								uint idx[3] = { clipVertIds[0], clipVertIds[k - 1], clipVertIds[k] };
-
-								RasterTriangle tri;
-								if (tri.Setup(verticesIn[clipVertIds[0]].projectedPos.HomogeneousProject(),
-									verticesIn[clipVertIds[k - 1]].projectedPos.HomogeneousProject(),
-									verticesIn[clipVertIds[k]].projectedPos.HomogeneousProject(),
-									idx,
-									texId,
-									rasterMatrix))
-								{
-									trianglesBuf.push_back(tri);
-								}
-							}
+							continue;
 						}
 
-						continue;
+						RasterTriangle tri;
+						if (tri.Setup(currentVertexBuf[idx0].projectedPos.HomogeneousProject(),
+							currentVertexBuf[idx1].projectedPos.HomogeneousProject(),
+							currentVertexBuf[idx2].projectedPos.HomogeneousProject(),
+							index,
+							coreId,
+							texId,
+							rasterMatrix))
+						{
+							trianglesBuf[coreId].push_back(tri);
+						}
 					}
-
-					RasterTriangle tri;
-					if (tri.Setup(verticesIn[idx0].projectedPos.HomogeneousProject(),
-						verticesIn[idx1].projectedPos.HomogeneousProject(),
-						verticesIn[idx2].projectedPos.HomogeneousProject(),
-						pIndex,
-						texId,
-						rasterMatrix))
-					{
-						trianglesBuf.push_back(tri);
-					}
-				}
+				});
 			}
 
 		private:

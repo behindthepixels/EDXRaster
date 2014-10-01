@@ -108,7 +108,7 @@ namespace EDX
 			CoverageMask coverageMask;
 
 			unsigned short x, y;
-			uint vId0, vId1, vId2;
+			uint vId0, vId1, vId2, coreId;
 			uint textureId;
 			uint tileId;
 			uint intraTileIdx;
@@ -118,6 +118,7 @@ namespace EDX
 				const int id0,
 				const int id1,
 				const int id2,
+				const int cId,
 				const int texId,
 				const Vector2i& pixelCoord,
 				const CoverageMask& mask,
@@ -128,6 +129,7 @@ namespace EDX
 				, vId0(id0)
 				, vId1(id1)
 				, vId2(id2)
+				, coreId(cId)
 				, textureId(texId)
 				, x(pixelCoord.x)
 				, y(pixelCoord.y)

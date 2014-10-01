@@ -23,7 +23,8 @@ namespace EDX
 			RefPtr<class Scene> mpScene;
 
 			vector<ProjectedVertex> mProjectedVertexBuf;
-			vector<RasterTriangle> mRasterTriangleBuf;
+			vector<ProjectedVertex>* mDistributedProjVertexBuf;
+			vector<RasterTriangle>* mRasterTriangleBuf;
 			vector<Fragment> mFragmentBuf;
 			vector<vector<IntSSE>> mTiledShadingResultBuf;
 

@@ -52,9 +52,13 @@ namespace EDX
 				}
 			}
 
-			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mProjectedVertexBuf);
 			mNumCores = DetectCPUCount();
 			mWriteFrames = false;
+
+			mDistributedProjVertexBuf = new vector<ProjectedVertex>[mNumCores];
+			mRasterTriangleBuf = new vector<RasterTriangle>[mNumCores];
+
+			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mDistributedProjVertexBuf);
 		}
 
 		void Renderer::Resize(uint iScreenWidth, uint iScreenHeight)
@@ -121,15 +125,23 @@ namespace EDX
 
 		void Renderer::Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf)
 		{
-			mRasterTriangleBuf.clear();
-			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, RenderStates::Instance()->GetRasterMatrix(), mRasterTriangleBuf);
-
-			parallel_for(0, (int)mProjectedVertexBuf.size(), [&](int i)
+			for (auto coreId = 0; coreId < mNumCores; coreId++)
 			{
-				ProjectedVertex& vertex = mProjectedVertexBuf[i];
-				vertex.invW = 1.0f / vertex.projectedPos.w;
-				vertex.projectedPos.z *= vertex.invW;
-			});
+				mDistributedProjVertexBuf[coreId].clear();
+				mRasterTriangleBuf[coreId].clear();
+			}
+
+			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, RenderStates::Instance()->GetRasterMatrix(), mDistributedProjVertexBuf, mRasterTriangleBuf, mNumCores);
+
+			for (auto coreId = 0; coreId < mNumCores; coreId++)
+			{
+				parallel_for(0, (int)mDistributedProjVertexBuf[coreId].size(), [&](int i)
+				{
+					ProjectedVertex& vertex = mDistributedProjVertexBuf[coreId][i];
+					vertex.invW = 1.0f / vertex.projectedPos.w;
+					vertex.projectedPos.z *= vertex.invW;
+				});
+			}
 		}
 
 		void Renderer::TiledRasterization()
@@ -146,16 +158,9 @@ namespace EDX
 			const int Shift = Tile::SIZE_LOG_2 + 4;
 			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				auto interval = (mRasterTriangleBuf.size() + mNumCores - 1) / mNumCores;
-				auto startIdx = coreId * interval;
-				auto endIdx = (coreId + 1) * interval;
-
-				for (auto i = startIdx; i < endIdx; i++)
+				for (auto i = 0; i < mRasterTriangleBuf[coreId].size(); i++)
 				{
-					if (i >= mRasterTriangleBuf.size())
-						return;
-
-					const RasterTriangle& tri = mRasterTriangleBuf[i];
+					const RasterTriangle& tri = mRasterTriangleBuf[coreId][i];
 
 					int minX = Math::Max(0, Math::Min(tri.v0.x, Math::Min(tri.v1.x, tri.v2.x)) >> Shift);
 					int maxX = Math::Min(mTileDim.x - 1, Math::Max(tri.v0.x, Math::Max(tri.v1.x, tri.v2.x)) >> Shift);
@@ -239,7 +244,7 @@ namespace EDX
 				for (auto j = 0; j < tile.triangleRefs[coreId].size(); j++)
 				{
 					const Tile::TriangleRef& triRef = tile.triangleRefs[coreId][j];
-					RasterTriangle& tri = mRasterTriangleBuf[triRef.triId];
+					RasterTriangle& tri = mRasterTriangleBuf[coreId][triRef.triId];
 
 					if (triRef.trivialAccept)
 					{
@@ -263,9 +268,9 @@ namespace EDX
 			{
 				Fragment& frag = mFragmentBuf[i];
 
-				const ProjectedVertex& v0 = mProjectedVertexBuf[frag.vId0];
-				const ProjectedVertex& v1 = mProjectedVertexBuf[frag.vId1];
-				const ProjectedVertex& v2 = mProjectedVertexBuf[frag.vId2];
+				const ProjectedVertex& v0 = mDistributedProjVertexBuf[frag.coreId][frag.vId0];
+				const ProjectedVertex& v1 = mDistributedProjVertexBuf[frag.coreId][frag.vId1];
+				const ProjectedVertex& v2 = mDistributedProjVertexBuf[frag.coreId][frag.vId2];
 
 				Vec3f_SSE position;
 				Vec3f_SSE normal;
