@@ -204,7 +204,7 @@ void GUIEvent(Object* pObject, EventArgs args)
 		char filePath[MAX_PATH];
 		char directory[MAX_PATH];
 		sprintf_s(directory, MAX_PATH, "%s../../Media", Application::GetBaseDirectory());
-		if (Application::GetMainWindow()->OpenFileDialog(directory, "obj", filePath))
+		if (Application::GetMainWindow()->OpenFileDialog(directory, "obj", "Wavefront Object\0*.obj", filePath))
 		{
 			gMesh.Release();
 			gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), filePath);
