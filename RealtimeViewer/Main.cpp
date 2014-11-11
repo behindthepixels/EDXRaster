@@ -172,8 +172,8 @@ void OnMouseEvent(Object* pSender, MouseEventArgs args)
 
 void OnKeyboardEvent(Object* pSender, KeyboardEventArgs args)
 {
-	if (args.key == 'U')
-		gDialog.ToggleVisible();
+	if (gDialog.HandleKeyboard(args))
+		return;
 
 	gCamera.HandleKeyboardMsg(args);
 }
