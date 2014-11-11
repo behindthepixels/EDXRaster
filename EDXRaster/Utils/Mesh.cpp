@@ -24,7 +24,7 @@ namespace EDX
 			for (auto i = 0; i < materialInfo.size(); i++)
 			{
 				if (materialInfo[i].strTexturePath[0])
-					mTextures.push_back(new ImageTexture<Color, Color4b>(materialInfo[i].strTexturePath));
+					mTextures.push_back(new ImageTexture<Color, Color4b>(materialInfo[i].strTexturePath, 1.0f));
 				else
 					mTextures.push_back(new ConstantTexture2D<Color>(materialInfo[i].color));
 			}
