@@ -7,7 +7,7 @@
 #include "Graphics/EDXGui.h"
 #include "Windows/Timer.h"
 
-#include <Graphics/OpenGL.h>
+#include "Graphics/OpenGL.h"
 
 using namespace EDX;
 using namespace EDX::GUI;
