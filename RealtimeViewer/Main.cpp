@@ -25,7 +25,6 @@ bool gRecord = false;
 RefPtr<Renderer>		gpRenderer;
 Camera			gCamera;
 Mesh			gMesh;
-EDXDialog		gDialog;
 Timer			gTimer;
 
 void GUIEvent(Object* pObject, EventArgs args);
@@ -57,35 +56,7 @@ void OnInit(Object* pSender, EventArgs args)
 	gCamera.mMoveScaler = radius / 50.0f;
 
 	// Initialize UI
-	gDialog.Init(giWindowWidth, giWindowHeight);
-	gDialog.SetCallback(NotifyEvent(GUIEvent));
-
-	gDialog.AddText(0, "Image Res: 800, 600");
-	gDialog.AddText(1, "Triangle Count: ");
-	gDialog.AddText(2, "FPS: 0");
-
-	gDialog.AddCheckBox(3, gHRas, &gHRas, "Hierarchical Rasterize");
-	gDialog.AddCheckBox(4, gRecord, &gRecord, "Record Frames");
-
-	ComboBoxItem AAItems[] = {
-			{ 0, "MSAA: off" },
-			{ 1, "MSAA: 2x" },
-			{ 2, "MSAA: 4x" },
-			{ 3, "MSAA: 8x" },
-			{ 4, "MSAA: 16x" }
-	};
-	gDialog.AddComboBox(5, gMSAAId, &gMSAAId, AAItems, 5);
-
-	ComboBoxItem FilterItems[] = {
-			{ 0, "Nearst" },
-			{ 1, "Linear" },
-			{ 2, "Trilinear" },
-			{ 3, "4x Anisotropic" },
-			{ 4, "8x Anisotropic" },
-			{ 5, "16x Anisotropic" }
-	};
-	gDialog.AddComboBox(6, gTexFilterId, &gTexFilterId, FilterItems, 6);
-	gDialog.AddButton(7, "Load Scene");
+	EDXGui::Init();
 
 	gTimer.Start();
 }
@@ -103,34 +74,56 @@ void OnRender(Object* pSender, EventArgs args)
 
 	gTimer.MarkFrame();
 
-	Text* pText = (Text*)gDialog.GetControlWithID(0);
-	char strText[_MAX_PATH] = { 0 };
-	_snprintf_s(strText, _MAX_PATH, "Image Res: %i, %i\0", giWindowWidth, giWindowHeight);
-	pText->SetText(strText);
+	EDXGui::BeginFrame();
+	EDXGui::BeginDialog(LayoutStrategy::DockRight);
+	{
+		EDXGui::Text("Image Res: %i, %i", giWindowWidth, giWindowHeight);
+		EDXGui::Text("Triangle Count: %i", gMesh.GetIndexBuffer()->GetTriangleCount());
+		EDXGui::Text(gTimer.GetFrameRate());
 
-	_snprintf_s(strText, _MAX_PATH, "Triangle Count: %i\0", gMesh.GetIndexBuffer()->GetTriangleCount());
-	((Text*)gDialog.GetControlWithID(1))->SetText(strText);
+		EDXGui::CheckBox("Hierarchical Rasterize", gHRas);
+		EDXGui::CheckBox("Record Frames", gRecord);
 
-	((Text*)gDialog.GetControlWithID(2))->SetText(gTimer.GetFrameRate());
+		ComboBoxItem AAItems[] = {
+				{ 0, "MSAA: off" },
+				{ 1, "MSAA: 2x" },
+				{ 2, "MSAA: 4x" },
+				{ 3, "MSAA: 8x" },
+				{ 4, "MSAA: 16x" }
+		};
+		EDXGui::ComboBox(AAItems, 5, gMSAAId);
 
-	gDialog.Render();
-	// 	Matrix mView = gCamera.GetViewMatrix();
-	// 	glLoadTransposeMatrixf((float*)&mView);
-	// 
-	// 	glBindBuffer(GL_ARRAY_BUFFER, giVboId1);
-	// 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, giVboId2);
-	// 
-	// 	glEnableClientState(GL_VERTEX_ARRAY);
-	// 	glVertexPointer(3, GL_FLOAT, sizeof(MeshVertex), 0);
-	// 	glEnableClientState(GL_COLOR_ARRAY);
-	// 	glColorPointer(3, GL_FLOAT, sizeof(MeshVertex), reinterpret_cast<void*>(offsetof(MeshVertex, nNormal)));
-	// 	
-	// 	glDrawElements(GL_TRIANGLES, 3 * gMesh.GetTriangleCount(), GL_UNSIGNED_INT, 0);
-	// 
-	// 	glDisableClientState(GL_VERTEX_ARRAY);
-	// 
-	// 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	// 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		ComboBoxItem FilterItems[] = {
+				{ 0, "Nearst" },
+				{ 1, "Linear" },
+				{ 2, "Trilinear" },
+				{ 3, "4x Anisotropic" },
+				{ 4, "8x Anisotropic" },
+				{ 5, "16x Anisotropic" }
+		};
+		EDXGui::ComboBox(FilterItems, 6, gTexFilterId);
+
+		if (EDXGui::Button("Load Scene"))
+		{
+			char filePath[MAX_PATH];
+			char directory[MAX_PATH];
+			sprintf_s(directory, MAX_PATH, "%s../../Media", Application::GetBaseDirectory());
+			if (Application::GetMainWindow()->OpenFileDialog(directory, "obj", "Wavefront Object\0*.obj", filePath))
+			{
+				gMesh.Release();
+				gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), filePath);
+
+				Vector3 center;
+				float radius;
+				gMesh.GetBounds().BoundingSphere(&center, &radius);
+
+				gCamera.Init(Vector3::ZERO, Vector3::UNIT_Z, Vector3::UNIT_Y, giWindowWidth, giWindowHeight, 65, radius * 0.02f, radius * 5.0f);
+				gCamera.mMoveScaler = radius / 50.0f;
+			}
+		}
+	}
+	EDXGui::EndDialog();
+	EDXGui::EndFrame();
 }
 
 void OnResize(Object* pSender, ResizeEventArgs args)
@@ -149,76 +142,32 @@ void OnResize(Object* pSender, ResizeEventArgs args)
 
 	gCamera.Resize(args.Width, args.Height);
 	gpRenderer->Resize(args.Width, args.Height);
-	gDialog.Resize(args.Width, args.Height);
 
 	giWindowWidth = args.Width;
 	giWindowHeight = args.Height;
+
+	EDXGui::Resize(args.Width, args.Height);
 }
 
 void OnRelease(Object* pSender, EventArgs args)
 {
 	gpRenderer.Dereference();
 	gMesh.~Mesh();
-	gDialog.Release();
+	EDXGui::Release();
 }
 
 void OnMouseEvent(Object* pSender, MouseEventArgs args)
 {
-	if (gDialog.MsgProc(args))
-		return;
+	EDXGui::HandleMouseEvent(args);
 
 	gCamera.HandleMouseMsg(args);
 }
 
 void OnKeyboardEvent(Object* pSender, KeyboardEventArgs args)
 {
-	if (gDialog.HandleKeyboard(args))
-		return;
+	EDXGui::HandleKeyboardEvent(args);
 
 	gCamera.HandleKeyboardMsg(args);
-}
-
-void GUIEvent(Object* pObject, EventArgs args)
-{
-	EDXControl* pControl = (EDXControl*)pObject;
-	switch (pControl->GetID())
-	{
-	case 3:
-		gpRenderer->SetHierarchicalRasterize(gHRas);
-		return;
-
-	case 4:
-		gpRenderer->SetWriteFrames(gRecord);
-		return;
-
-	case 5:
-		gpRenderer->SetMSAAMode(gMSAAId);
-		return;
-
-	case 6:
-		gpRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
-		return;
-
-	case 7:
-	{
-		char filePath[MAX_PATH];
-		char directory[MAX_PATH];
-		sprintf_s(directory, MAX_PATH, "%s../../Media", Application::GetBaseDirectory());
-		if (Application::GetMainWindow()->OpenFileDialog(directory, "obj", "Wavefront Object\0*.obj", filePath))
-		{
-			gMesh.Release();
-			gMesh.LoadMesh(Vector3(0, 0, 0), 0.01f * Vector3::UNIT_SCALE, Vector3(0, 0, 0), filePath);
-
-			Vector3 center;
-			float radius;
-			gMesh.GetBounds().BoundingSphere(&center, &radius);
-
-			gCamera.Init(Vector3::ZERO, Vector3::UNIT_Z, Vector3::UNIT_Y, giWindowWidth, giWindowHeight, 65, radius * 0.02f, radius * 5.0f);
-			gCamera.mMoveScaler = radius / 50.0f;
-		}
-		return;
-	}
-	}
 }
 
 
