@@ -85,13 +85,13 @@ void OnRender(Object* pSender, EventArgs args)
 		EDXGui::CheckBox("Record Frames", gRecord);
 
 		ComboBoxItem AAItems[] = {
-				{ 0, "MSAA: off" },
-				{ 1, "MSAA: 2x" },
-				{ 2, "MSAA: 4x" },
-				{ 3, "MSAA: 8x" },
-				{ 4, "MSAA: 16x" }
+				{ 0, "off" },
+				{ 1, "2x" },
+				{ 2, "4x" },
+				{ 3, "8x" },
+				{ 4, "16x" }
 		};
-		EDXGui::ComboBox(AAItems, 5, gMSAAId);
+		EDXGui::ComboBox("MSAA:", AAItems, 5, gMSAAId);
 
 		ComboBoxItem FilterItems[] = {
 				{ 0, "Nearst" },
@@ -101,7 +101,7 @@ void OnRender(Object* pSender, EventArgs args)
 				{ 4, "8x Anisotropic" },
 				{ 5, "16x Anisotropic" }
 		};
-		EDXGui::ComboBox(FilterItems, 6, gTexFilterId);
+		EDXGui::ComboBox("Texture Filter:", FilterItems, 6, gTexFilterId);
 
 		if (EDXGui::Button("Load Scene"))
 		{
