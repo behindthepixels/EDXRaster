@@ -92,6 +92,7 @@ void OnRender(Object* pSender, EventArgs args)
 				{ 4, "16x" }
 		};
 		EDXGui::ComboBox("MSAA:", AAItems, 5, gMSAAId);
+		gpRenderer->SetMSAAMode(gMSAAId);
 
 		ComboBoxItem FilterItems[] = {
 				{ 0, "Nearst" },
@@ -102,6 +103,7 @@ void OnRender(Object* pSender, EventArgs args)
 				{ 5, "16x Anisotropic" }
 		};
 		EDXGui::ComboBox("Texture Filter:", FilterItems, 6, gTexFilterId);
+		gpRenderer->SetTextureFilter(TextureFilter(gTexFilterId));
 
 		if (EDXGui::Button("Load Scene"))
 		{
