@@ -34,6 +34,8 @@
     <ClInclude Include="Core\Scene.h" />
     <ClInclude Include="Core\Shader.h" />
     <ClInclude Include="Core\Tile.h" />
+    <ClInclude Include="ShaderCompiler\CompilerCommon.h" />
+    <ClInclude Include="ShaderCompiler\HLSLLexer.h" />
     <ClInclude Include="Utils\InputBuffer.h" />
     <ClInclude Include="Utils\Mesh.h" />
   </ItemGroup>

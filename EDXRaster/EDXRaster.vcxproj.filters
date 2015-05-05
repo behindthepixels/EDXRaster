@@ -19,6 +19,9 @@
     <Filter Include="Source Files\Utils">
       <UniqueIdentifier>{5f304963-b1d5-4c7b-b148-6174a5131475}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\ShaderCompiler">
+      <UniqueIdentifier>{b16b2ef0-1a58-4b64-bf15-5f4a3fc30aae}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\FrameBuffer.cpp">
@@ -67,6 +70,12 @@
     </ClInclude>
     <ClInclude Include="Core\RenderStates.h">
       <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCompiler\HLSLLexer.h">
+      <Filter>Source Files\ShaderCompiler</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCompiler\CompilerCommon.h">
+      <Filter>Source Files\ShaderCompiler</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
