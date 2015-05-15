@@ -246,20 +246,24 @@ namespace EDX
 			StringConstant,	// C-style "string"
 		};
 
+		struct SourceInfo
+		{
+			string FileName;
+			int Line, Column;
+		};
+
 		struct HLSLToken
 		{
 			HLSLTokenType Type;
 			string Literal;
-			int Line, Column;
+			SourceInfo SrcInfo;
 
 			HLSLToken(const HLSLTokenType type,
 				const string& str,
-				const int line,
-				const int col)
-				: Type(type)
-				, Literal(str)
-				, Line(line)
-				, Column(col)
+				const SourceInfo& srcInfo) :
+				Type(type),
+				Literal(str),
+				SrcInfo(srcInfo)
 			{
 			}
 		};
@@ -267,17 +271,12 @@ namespace EDX
 		struct CompileError
 		{
 			string ErrorMsg;
-			string FileName;
-			int LineNumber;
-			int ColumnNumber;
+			SourceInfo SrcInfo;
 
 			CompileError(const string& msg,
-				const string& file,
-				const int line,
-				const int coloum)
-				: FileName(file)
-				, LineNumber(line)
-				, ColumnNumber(coloum)
+				const SourceInfo& srcInfo) :
+				ErrorMsg(msg),
+				SrcInfo(srcInfo)
 			{
 			}
 		};
