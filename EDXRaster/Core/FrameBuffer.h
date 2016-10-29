@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Memory/Array.h"
+#include "Containers/Array.h"
+#include "Containers/DimensionalArray.h"
 #include "Graphics/Color.h"
 #include "SIMD/SSE.h"
 
@@ -8,15 +9,15 @@ namespace EDX
 {
 	namespace RasterRenderer
 	{
-		typedef Array<2, Color4b> Array2C;
-		typedef Array<3, Color4b> Array3C;
+		typedef DimensionalArray<2, Color4b> Array2C;
+		typedef DimensionalArray<3, Color4b> Array3C;
 
 		class FrameBuffer
 		{
 		private:
 			Array3C mColorBufferMS;
 			Array2C mColorBuffer;
-			vector<Array<3, FloatSSE>> mTiledDepthBuffer;
+			Array<DimensionalArray<3, FloatSSE>> mTiledDepthBuffer;
 			uint mTileDimX, mTileDimY;
 			uint mResX, mResY;
 

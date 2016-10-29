@@ -1,6 +1,8 @@
 #include "Windows/Window.h"
 #include "Windows/Application.h"
 #include "Core/Renderer.h"
+#include "Core/Scene.h"
+#include "Core/Rasterizer.h"
 #include "Graphics/Camera.h"
 #include "Utils/Mesh.h"
 
@@ -22,12 +24,10 @@ bool gHRas = true;
 bool gRecord = false;
 
 // Global variables
-RefPtr<Renderer>		gpRenderer;
+Renderer*		gpRenderer;
 Camera			gCamera;
 Mesh			gMesh;
 Timer			gTimer;
-
-void GUIEvent(Object* pObject, EventArgs args);
 
 void OnInit(Object* pSender, EventArgs args)
 {
@@ -65,6 +65,8 @@ void OnInit(Object* pSender, EventArgs args)
 void OnRender(Object* pSender, EventArgs args)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	gCamera.Transform();
 
 	gpRenderer->SetTransform(gCamera.GetViewMatrix(), gCamera.GetProjMatrix(), gCamera.GetRasterMatrix());
 	gpRenderer->RenderMesh(gMesh);
@@ -153,8 +155,7 @@ void OnResize(Object* pSender, ResizeEventArgs args)
 
 void OnRelease(Object* pSender, EventArgs args)
 {
-	gpRenderer.Dereference();
-	gMesh.~Mesh();
+	Memory::SafeDelete(gpRenderer);
 	EDXGui::Release();
 }
 

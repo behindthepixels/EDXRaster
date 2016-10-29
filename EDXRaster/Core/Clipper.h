@@ -23,10 +23,10 @@ namespace EDX
 				}
 			};
 
-			vector<Vertex> vertices;
+			Array<Vertex> vertices;
 			void FromTriangle(const Vector4& v0, const Vector4& v1, const Vector4& v2)
 			{
-				vertices.resize(3);
+				vertices.Resize(3);
 				vertices[0].pos = v0; vertices[1].pos = v1; vertices[2].pos = v2;
 				vertices[0].clipWeights = Vector3::UNIT_X;
 				vertices[1].clipWeights = Vector3::UNIT_Y;
@@ -68,11 +68,11 @@ namespace EDX
 			}
 
 		public:
-			static void Clip(vector<ProjectedVertex>& vertexBufferIn,
+			static void Clip(Array<ProjectedVertex>& vertexBufferIn,
 				const IndexBuffer* pIndexBuf,
-				const vector<uint>& texIdBuf,
-				vector<ProjectedVertex>* pProjVertices,
-				vector<RasterTriangle>* pTrianglesBuf,
+				const Array<uint>& texIdBuf,
+				Array<ProjectedVertex>* pProjVertices,
+				Array<RasterTriangle>* pTrianglesBuf,
 				int numCores)
 			{
 				concurrency::parallel_for(0, numCores, [&](int coreId)
@@ -93,12 +93,12 @@ namespace EDX
 						const Vector4& v1 = vertexBufferIn[pIndex[1]].projectedPos;
 						const Vector4& v2 = vertexBufferIn[pIndex[2]].projectedPos;
 						const uint texId = texIdBuf[i];
-						int idx0 = currentVertexBuf.size();
-						currentVertexBuf.push_back(vertexBufferIn[pIndex[0]]);
-						int idx1 = currentVertexBuf.size();
-						currentVertexBuf.push_back(vertexBufferIn[pIndex[1]]);
-						int idx2 = currentVertexBuf.size();
-						currentVertexBuf.push_back(vertexBufferIn[pIndex[2]]);
+						int idx0 = currentVertexBuf.Size();
+						currentVertexBuf.Add(vertexBufferIn[pIndex[0]]);
+						int idx1 = currentVertexBuf.Size();
+						currentVertexBuf.Add(vertexBufferIn[pIndex[1]]);
+						int idx2 = currentVertexBuf.Size();
+						currentVertexBuf.Add(vertexBufferIn[pIndex[2]]);
 
 						uint clipCode0 = ComputeClipCode(v0);
 						uint clipCode1 = ComputeClipCode(v1);
@@ -118,7 +118,7 @@ namespace EDX
 								ClipPolygon(pCurrPoly, pbuffPoly,
 									(clipCode0 ^ clipCode1) | (clipCode1 ^ clipCode2) | (clipCode2 ^ clipCode0));
 
-								for (int j = 0; j < pCurrPoly->vertices.size(); j++)
+								for (int j = 0; j < pCurrPoly->vertices.Size(); j++)
 								{
 									Vector3 weight = pCurrPoly->vertices[j].clipWeights;
 									if (weight.x == 1.0f)
@@ -135,7 +135,7 @@ namespace EDX
 									}
 									else
 									{
-										clipVertIds[j] = currentVertexBuf.size();
+										clipVertIds[j] = currentVertexBuf.Size();
 										ProjectedVertex tmpVertex;
 										tmpVertex.projectedPos = pCurrPoly->vertices[j].pos;
 										tmpVertex.position = weight.x * currentVertexBuf[idx0].position +
@@ -148,12 +148,12 @@ namespace EDX
 											weight.y * currentVertexBuf[idx1].texCoord +
 											weight.z * currentVertexBuf[idx2].texCoord;
 
-										currentVertexBuf.push_back(tmpVertex);
+										currentVertexBuf.Add(tmpVertex);
 									}
 								}
 
 								// Simple triangulation
-								for (int k = 2; k < pCurrPoly->vertices.size(); k++)
+								for (int k = 2; k < pCurrPoly->vertices.Size(); k++)
 								{
 									uint idx[3] = { clipVertIds[0], clipVertIds[k - 1], clipVertIds[k] };
 
@@ -165,7 +165,7 @@ namespace EDX
 										coreId,
 										texId))
 									{
-										pTrianglesBuf[coreId].push_back(tri);
+										pTrianglesBuf[coreId].Add(tri);
 									}
 								}
 							}
@@ -182,7 +182,7 @@ namespace EDX
 							coreId,
 							texId))
 						{
-							pTrianglesBuf[coreId].push_back(tri);
+							pTrianglesBuf[coreId].Add(tri);
 						}
 					}
 				});
@@ -192,18 +192,18 @@ namespace EDX
 			template<typename PredicateFunc, typename ComputeTFunc, typename ClipFunc>
 			static void ClipByPlane(Polygon*& pInput, Polygon*& pBuffer, PredicateFunc predicate, ComputeTFunc computeT, ClipFunc clip)
 			{
-				pBuffer->vertices.clear();
-				for (int i = 0; i < pInput->vertices.size(); i++)
+				pBuffer->vertices.Clear();
+				for (int i = 0; i < pInput->vertices.Size(); i++)
 				{
 					int i1 = i + 1;
-					if (i1 == pInput->vertices.size()) i1 = 0;
+					if (i1 == pInput->vertices.Size()) i1 = 0;
 					Vector4 v0 = pInput->vertices[i].pos;
 					Vector4 v1 = pInput->vertices[i1].pos;
 					if (predicate(v0))
 					{
 						if (predicate(v1))
 						{
-							pBuffer->vertices.push_back(Polygon::Vertex(v1, pInput->vertices[i1].clipWeights));
+							pBuffer->vertices.Add(Polygon::Vertex(v1, pInput->vertices[i1].clipWeights));
 						}
 						else
 						{
@@ -211,7 +211,7 @@ namespace EDX
 							Vector4 pos = v0 * (1 - t) + v1 * t;
 							clip(pos);
 							Vector3 weight = pInput->vertices[i].clipWeights * (1 - t) + pInput->vertices[i1].clipWeights * t;
-							pBuffer->vertices.push_back(Polygon::Vertex(pos, weight));
+							pBuffer->vertices.Add(Polygon::Vertex(pos, weight));
 						}
 					}
 					else
@@ -222,13 +222,13 @@ namespace EDX
 							Vector4 pos = v0 * (1 - t) + v1 * t;
 							clip(pos);
 							Vector3 weight = pInput->vertices[i].clipWeights * (1 - t) + pInput->vertices[i1].clipWeights * t;
-							pBuffer->vertices.push_back(Polygon::Vertex(pos, weight));
-							pBuffer->vertices.push_back(Polygon::Vertex(v1, pInput->vertices[i1].clipWeights));
+							pBuffer->vertices.Add(Polygon::Vertex(pos, weight));
+							pBuffer->vertices.Add(Polygon::Vertex(v1, pInput->vertices[i1].clipWeights));
 						}
 					}
 				}
 
-				swap(pInput, pBuffer);
+				Swap(pInput, pBuffer);
 			}
 
 		public:
@@ -277,11 +277,11 @@ namespace EDX
 						[=](Vector4& v) { v.z = 0.0f; });
 				}
 
-				for (int i = 0; i<pInput->vertices.size(); i++)
+				for (int i = 0; i<pInput->vertices.Size(); i++)
 				{
 					if (pInput->vertices[i].pos.w <= 0.0f)
 					{
-						pInput->vertices.clear();
+						pInput->vertices.Clear();
 						return;
 					}
 				}

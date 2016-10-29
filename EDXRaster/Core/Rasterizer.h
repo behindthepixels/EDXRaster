@@ -13,11 +13,11 @@ namespace EDX
 		{
 		private:
 			FrameBuffer* mpFrameBuffer;
-			vector<ProjectedVertex>* mpDistProjVertexBuf_Ref;
+			Array<ProjectedVertex>* mpDistProjVertexBuf_Ref;
 			const Vec2i_SSE mCenterOffset;
 
 		public:
-			Rasterizer(FrameBuffer* pFB, vector<ProjectedVertex>* vb)
+			Rasterizer(FrameBuffer* pFB, Array<ProjectedVertex>* vb)
 				: mpFrameBuffer(pFB)
 				, mpDistProjVertexBuf_Ref(vb)
 				, mCenterOffset(Vec2i_SSE(IntSSE(8, 24, 8, 24), IntSSE(8, 8, 24, 24)))
@@ -173,7 +173,7 @@ namespace EDX
 							BoolSSE visible = zTest & covered;
 							if (SSE::Any(visible))
 							{
-								tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
+								tile.fragmentBuf.Add(Fragment(triSSE.lambda0,
 									triSSE.lambda1,
 									triSSE.vId0,
 									triSSE.vId1,
@@ -183,7 +183,7 @@ namespace EDX
 									pixelCrd,
 									CoverageMask(visible, 0),
 									tile.tileId,
-									tile.fragmentBuf.size()));
+									tile.fragmentBuf.Size()));
 							}
 						}
 
@@ -274,7 +274,7 @@ namespace EDX
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
 
-							tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
+							tile.fragmentBuf.Add(Fragment(triSSE.lambda0,
 								triSSE.lambda1,
 								triSSE.vId0,
 								triSSE.vId1,
@@ -284,7 +284,7 @@ namespace EDX
 								pixelCrd,
 								mask,
 								tile.tileId,
-								tile.fragmentBuf.size()));
+								tile.fragmentBuf.Size()));
 						}
 
 						edgeVal0 += triSSE.stepB0;
@@ -336,7 +336,7 @@ namespace EDX
 						BoolSSE zTest = mpFrameBuffer->ZTestQuad(triSSE.GetDepth(v0, v1, v2), pixelCrd.x, pixelCrd.y, 0, BoolSSE(Constants::EDX_TRUE));
 						if (SSE::Any(zTest))
 						{
-							tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
+							tile.fragmentBuf.Add(Fragment(triSSE.lambda0,
 								triSSE.lambda1,
 								triSSE.vId0,
 								triSSE.vId1,
@@ -346,7 +346,7 @@ namespace EDX
 								pixelCrd,
 								CoverageMask(zTest, 0),
 								tile.tileId,
-								tile.fragmentBuf.size()));
+								tile.fragmentBuf.Size()));
 						}
 					}
 				}
@@ -398,7 +398,7 @@ namespace EDX
 						if (genFragment)
 						{
 							triSSE.CalcBarycentricCoord(pixelCenter.x, pixelCenter.y);
-							tile.fragmentBuf.push_back(Fragment(triSSE.lambda0,
+							tile.fragmentBuf.Add(Fragment(triSSE.lambda0,
 								triSSE.lambda1,
 								triSSE.vId0,
 								triSSE.vId1,
@@ -408,7 +408,7 @@ namespace EDX
 								pixelCrd,
 								mask,
 								tile.tileId,
-								tile.fragmentBuf.size()));
+								tile.fragmentBuf.Size()));
 						}
 					}
 				}

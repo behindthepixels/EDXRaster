@@ -228,11 +228,11 @@ namespace EDX
 				const Vector2 differentials[2] = { Vector2(texCoord.u[1] - texCoord.u[0], texCoord.v[1] - texCoord.v[0]),
 					Vector2(texCoord.u[2] - texCoord.u[0], texCoord.v[2] - texCoord.v[0]) };
 
-				RenderStates::Instance()->TextureSlots[fragIn.textureId]->SetFilter(RenderStates::Instance()->GetTextureFilter());
+				(*RenderStates::Instance()->TextureSlots)[fragIn.textureId]->SetFilter(RenderStates::Instance()->GetTextureFilter());
 				Vec3f_SSE Albedo;
 				for (auto i = 0; i < 4; i++)
 				{
-					Color color = RenderStates::Instance()->TextureSlots[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]), differentials);
+					Color color = (*RenderStates::Instance()->TextureSlots)[fragIn.textureId]->Sample(Vector2(texCoord.u[i], texCoord.v[i]), differentials);
 					Albedo.x[i] = color.r;
 					Albedo.y[i] = color.g;
 					Albedo.z[i] = color.b;

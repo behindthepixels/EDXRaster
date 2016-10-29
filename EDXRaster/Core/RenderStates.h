@@ -3,7 +3,7 @@
 #include "EDXPrerequisites.h"
 #include "Graphics/Texture.h"
 #include "Math/Matrix.h"
-#include "Memory/RefPtr.h"
+#include "Core/SmartPointer.h"
 
 namespace EDX
 {
@@ -25,7 +25,7 @@ namespace EDX
 			int FrameCount;
 			bool HierarchicalRasterize;
 
-			vector<RefPtr<Texture2D<Color>>> TextureSlots;
+			const Array<UniquePtr<Texture2D<Color>>>* TextureSlots = nullptr;
 
 		private:
 			RenderStates()

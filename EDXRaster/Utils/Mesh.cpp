@@ -1,7 +1,7 @@
 #include "Mesh.h"
 #include "InputBuffer.h"
 #include "Graphics/ObjMesh.h"
-#include "Memory/Memory.h"
+#include "Core/Memory.h"
 
 
 namespace EDX
@@ -16,17 +16,17 @@ namespace EDX
 			ObjMesh mesh;
 			mesh.LoadFromObj(pos, scl, rot, path);
 
-			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
-			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
+			mpVertexBuf.Reset(CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount()));
+			mpIndexBuf.Reset(CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount()));
 
 			// Initialize materials
 			const auto& materialInfo = mesh.GetMaterialInfo();
-			for (auto i = 0; i < materialInfo.size(); i++)
+			for (auto i = 0; i < materialInfo.Size(); i++)
 			{
 				if (materialInfo[i].strTexturePath[0])
-					mTextures.push_back(new ImageTexture<Color, Color4b>(materialInfo[i].strTexturePath, 1.0f));
+					mTextures.Add(MakeUnique<ImageTexture<Color, Color4b>>(materialInfo[i].strTexturePath, 1.0f));
 				else
-					mTextures.push_back(new ConstantTexture2D<Color>(materialInfo[i].color));
+					mTextures.Add(MakeUnique<ConstantTexture2D<Color>>(materialInfo[i].color));
 			}
 			mTexIdx = mesh.GetMaterialIdxBuf();
 
@@ -41,10 +41,10 @@ namespace EDX
 			ObjMesh mesh;
 			mesh.LoadPlane(pos, scl, rot, length);
 
-			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
-			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
+			mpVertexBuf.Reset(CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount()));
+			mpIndexBuf.Reset(CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount()));
 
-			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
+			mTextures.Add(MakeUnique<ConstantTexture2D<Color>>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
 
 			mBounds = mesh.GetBounds();
@@ -60,10 +60,10 @@ namespace EDX
 			ObjMesh mesh;
 			mesh.LoadSphere(pos, scl, rot, radius, slices, stacks);
 
-			mpVertexBuf = CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount());
-			mpIndexBuf = CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount());
+			mpVertexBuf.Reset(CreateVertexBuffer(&mesh.GetVertexAt(0), mesh.GetVertexCount()));
+			mpIndexBuf.Reset(CreateIndexBuffer(mesh.GetIndexAt(0), mesh.GetTriangleCount()));
 
-			mTextures.push_back(new ConstantTexture2D<Color>(0.9f * Color::WHITE));
+			mTextures.Add(MakeUnique<ConstantTexture2D<Color>>(0.9f * Color::WHITE));
 			mTexIdx = mesh.GetMaterialIdxBuf();
 
 			mBounds = mesh.GetBounds();
@@ -71,10 +71,10 @@ namespace EDX
 
 		void Mesh::Release()
 		{
-			mpVertexBuf->Release();
-			mpIndexBuf->Release();
-			mTextures.clear();
-			mTexIdx.clear();
+			mpVertexBuf.Reset(nullptr);
+			mpIndexBuf.Reset(nullptr);
+			mTextures.Clear();
+			mTexIdx.Clear();
 		}
 	}
 }

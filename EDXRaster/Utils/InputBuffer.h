@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EDXPrerequisites.h"
-#include "Memory/Memory.h"
+#include "Core/Memory.h"
 
 namespace EDX
 {
@@ -58,6 +58,7 @@ namespace EDX
 			virtual Vector3		 GetNormal(const uint idx) const = 0;
 			virtual Vector2		 GetTexCoord(const uint idx) const = 0;
 			virtual Color		 GetColor(const uint idx) const = 0;
+			virtual void		 Release() = 0;
 			uint				 GetVertexCount() const
 			{
 				return mVertexCount;
@@ -127,7 +128,7 @@ namespace EDX
 			}
 			void Release()
 			{
-				SafeDeleteArray(mpBuffer);
+				Memory::SafeDeleteArray(mpBuffer);
 			}
 
 		};
@@ -147,7 +148,7 @@ namespace EDX
 		class IndexBuffer
 		{
 		private:
-			vector<uint>	mBuffer;
+			Array<uint>	mBuffer;
 
 		public:
 			~IndexBuffer()
@@ -157,35 +158,35 @@ namespace EDX
 			
 			void ResizeBuffer(const uint triCount)
 			{
-				mBuffer.resize(3 * triCount);
+				mBuffer.Resize(3 * triCount);
 			}
 			inline uint* GetBuffer()
 			{
-				return mBuffer.data();
+				return mBuffer.Data();
 			}
 			inline uint GetTriangleCount() const
 			{
-				return mBuffer.size() / 3;
+				return mBuffer.Size() / 3;
 			}
 			inline size_t GetBufferSize() const
 			{
-				return mBuffer.size();
+				return mBuffer.Size();
 			}
 			inline const uint* GetIndex(const uint idx) const
 			{
-				assert(3 * idx < mBuffer.size());
+				Assert(3 * idx < mBuffer.Size());
 				return (uint*)&mBuffer[3 * idx];
 			}
 			inline void AppendTriangle(const int idx0, const int idx1, const int idx2)
 			{
-				mBuffer.push_back(idx0);
-				mBuffer.push_back(idx1);
-				mBuffer.push_back(idx2);
+				mBuffer.Add(idx0);
+				mBuffer.Add(idx1);
+				mBuffer.Add(idx2);
 			}
 			inline void CopyFrom(IndexBuffer& other)
 			{
-				mBuffer.resize(other.GetBufferSize());
-				memcpy(mBuffer.data(), other.GetBuffer(), other.GetBufferSize() * sizeof(uint));
+				mBuffer.Resize(other.GetBufferSize());
+				memcpy(mBuffer.Data(), other.GetBuffer(), other.GetBufferSize() * sizeof(uint));
 			}
 			void Release()
 			{

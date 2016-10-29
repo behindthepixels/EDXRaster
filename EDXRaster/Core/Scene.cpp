@@ -1,6 +1,7 @@
 #include "Scene.h"
 
 #include "../Utils/Mesh.h"
+#include "../Utils/InputBuffer.h"
 
 namespace EDX
 {
@@ -8,7 +9,7 @@ namespace EDX
 	{
 		void Scene::AddMesh(Mesh* pMesh)
 		{
-			mMeshes.push_back(pMesh);
+			mMeshes.Add(UniquePtr<Mesh>(pMesh));
 		}
 	}
 }

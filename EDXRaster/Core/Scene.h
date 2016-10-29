@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EDXPrerequisites.h"
-#include "Memory/RefPtr.h"
+#include "Core/SmartPointer.h"
 
 namespace EDX
 {
@@ -10,7 +10,7 @@ namespace EDX
 		class Scene
 		{
 		private:
-			vector<RefPtr<class Mesh>> mMeshes;
+			Array<UniquePtr<class Mesh>> mMeshes;
 
 		public:
 			void AddMesh(Mesh* pMesh);

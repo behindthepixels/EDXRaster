@@ -28,17 +28,17 @@ namespace EDX
 
 			if (!mpFrameBuffer)
 			{
-				mpFrameBuffer = new FrameBuffer;
+				mpFrameBuffer = MakeUnique<FrameBuffer>();
 			}
 			mpFrameBuffer->Init(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->MultiSampleLevel);
 
 			if (!mpScene)
 			{
-				mpScene = new Scene;
+				mpScene = MakeUnique<Scene>();
 			}
 
-			mpVertexShader = new DefaultVertexShader;
-			mpPixelShader = new LambertianAlbedoPixelShader;
+			mpVertexShader = MakeUnique<DefaultVertexShader>();
+			mpPixelShader = MakeUnique<LambertianAlbedoPixelShader>();
 
 			int tId = 0;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
@@ -48,17 +48,17 @@ namespace EDX
 					auto maxX = Math::Min(j + Tile::SIZE, iScreenWidth);
 					auto maxY = Math::Min(i + Tile::SIZE, iScreenHeight);
 
-					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY), tId++));
+					mTiles.Add(Tile(Vector2i(j, i), Vector2i(maxX, maxY), tId++));
 				}
 			}
 
-			mNumCores = DetectCPUCount();
+			mNumCores = GetNumberOfCores();
 			mWriteFrames = false;
 
-			mpDistributedProjVertexBuf = new vector<ProjectedVertex>[mNumCores];
-			mpRasterTriangleBuf = new vector<RasterTriangle>[mNumCores];
+			mpDistributedProjVertexBuf = new Array<ProjectedVertex>[mNumCores];
+			mpRasterTriangleBuf = new Array<RasterTriangle>[mNumCores];
 
-			mpRasterizer = new Rasterizer(mpFrameBuffer.Ptr(), mpDistributedProjVertexBuf);
+			mpRasterizer = MakeUnique<Rasterizer>(mpFrameBuffer.Get(), mpDistributedProjVertexBuf);
 		}
 
 		void Renderer::Resize(uint iScreenWidth, uint iScreenHeight)
@@ -68,7 +68,7 @@ namespace EDX
 
 			mpFrameBuffer->Resize(iScreenWidth, iScreenHeight, mTileDim, RenderStates::Instance()->MultiSampleLevel);
 
-			mTiles.clear();
+			mTiles.Clear();
 			int tId = 0;
 			for (auto i = 0; i < iScreenHeight; i += Tile::SIZE)
 			{
@@ -77,7 +77,7 @@ namespace EDX
 					auto maxX = Math::Min(j + Tile::SIZE, iScreenWidth);
 					auto maxY = Math::Min(i + Tile::SIZE, iScreenHeight);
 
-					mTiles.push_back(Tile(Vector2i(j, i), Vector2i(maxX, maxY), tId++));
+					mTiles.Add(Tile(Vector2i(j, i), Vector2i(maxX, maxY), tId++));
 				}
 			}
 		}
@@ -103,7 +103,7 @@ namespace EDX
 			mpFrameBuffer->Clear();
 
 			// Set texture index
-			RenderStates::Instance()->TextureSlots = mesh.GetTextures();
+			RenderStates::Instance()->TextureSlots = &mesh.GetTextures();
 
 			VertexProcessing(mesh.GetVertexBuffer());
 			Clipping(mesh.GetIndexBuffer(), mesh.GetTextureIds());
@@ -119,26 +119,26 @@ namespace EDX
 
 		void Renderer::VertexProcessing(const IVertexBuffer* pVertexBuf)
 		{
-			mProjectedVertexBuf.resize(pVertexBuf->GetVertexCount());
+			mProjectedVertexBuf.Resize(pVertexBuf->GetVertexCount());
 			parallel_for(0, (int)pVertexBuf->GetVertexCount(), [&](int i)
 			{
 				mpVertexShader->Execute(pVertexBuf->GetPosition(i), pVertexBuf->GetNormal(i), pVertexBuf->GetTexCoord(i), &mProjectedVertexBuf[i]);
 			});
 		}
 
-		void Renderer::Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf)
+		void Renderer::Clipping(IndexBuffer* pIndexBuf, const Array<uint>& texIdBuf)
 		{
 			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				mpDistributedProjVertexBuf[coreId].clear();
-				mpRasterTriangleBuf[coreId].clear();
+				mpDistributedProjVertexBuf[coreId].Clear();
+				mpRasterTriangleBuf[coreId].Clear();
 			});
 
 			Clipper::Clip(mProjectedVertexBuf, pIndexBuf, texIdBuf, mpDistributedProjVertexBuf, mpRasterTriangleBuf, mNumCores);
 
 			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				for (auto i = 0; i < mpDistributedProjVertexBuf[coreId].size(); i++)
+				for (auto i = 0; i < mpDistributedProjVertexBuf[coreId].Size(); i++)
 				{
 					ProjectedVertex& vertex = mpDistributedProjVertexBuf[coreId][i];
 					vertex.invW = 1.0f / vertex.projectedPos.w;
@@ -150,18 +150,18 @@ namespace EDX
 		void Renderer::TiledRasterization()
 		{
 			// Binning triangles
-			parallel_for(0, (int)mTiles.size(), [&](int i)
+			parallel_for(0, (int)mTiles.Size(), [&](int i)
 			{
 				for (auto c = 0; c < mNumCores; c++)
-					mTiles[i].triangleRefs[c].clear();
+					mTiles[i].triangleRefs[c].Clear();
 
-				mTiles[i].fragmentBuf.clear();
+				mTiles[i].fragmentBuf.Clear();
 			});
 
 			const int Shift = Tile::SIZE_LOG_2 + 4;
 			parallel_for(0, mNumCores, [&](int coreId)
 			{
-				for (auto i = 0; i < mpRasterTriangleBuf[coreId].size(); i++)
+				for (auto i = 0; i < mpRasterTriangleBuf[coreId].Size(); i++)
 				{
 					const RasterTriangle& tri = mpRasterTriangleBuf[coreId][i];
 
@@ -175,7 +175,7 @@ namespace EDX
 						for (auto y = minY; y <= maxY; y++)
 						{
 							for (auto x = minX; x <= maxX; x++)
-								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i));
+								mTiles[y * mTileDim.x + x].triangleRefs[coreId].Add(Tile::TriangleRef(i));
 						}
 					}
 					else
@@ -217,7 +217,7 @@ namespace EDX
 									(pixelBase.x + acptCornerOffset2.x) << Shift,
 									(pixelBase.y + acptCornerOffset2.y) << Shift);
 
-								mTiles[y * mTileDim.x + x].triangleRefs[coreId].push_back(Tile::TriangleRef(i,
+								mTiles[y * mTileDim.x + x].triangleRefs[coreId].Add(Tile::TriangleRef(i,
 									tri.EdgeFunc0(acptCorner0) >= 0,
 									tri.EdgeFunc1(acptCorner1) >= 0,
 									tri.EdgeFunc2(acptCorner2) >= 0,
@@ -229,18 +229,19 @@ namespace EDX
 			});
 
 
-			//for (auto i = 0; i < mTiles.size(); i++)
-			parallel_for(0, (int)mTiles.size(), [&](int i)
+			//for (auto i = 0; i < mTiles.Size(); i++)
+			parallel_for(0, (int)mTiles.Size(), [&](int i)
 			{
 				RasterizeTile(mTiles[i]);
 			});
 
-			mFragmentBuf.clear();
-			mTiledShadingResultBuf.resize(mTiles.size());
-			for (auto i = 0; i < mTiles.size(); i++)
+			mFragmentBuf.Clear();
+			mTiledShadingResultBuf.Resize(mTiles.Size());
+			for (auto i = 0; i < mTiles.Size(); i++)
 			{
-				mTiledShadingResultBuf[i].resize(mTiles[i].fragmentBuf.size());
-				mFragmentBuf.insert(mFragmentBuf.end(), mTiles[i].fragmentBuf.begin(), mTiles[i].fragmentBuf.end());
+				mTiledShadingResultBuf[i].Resize(mTiles[i].fragmentBuf.Size());
+				if (mTiles[i].fragmentBuf.Size() > 0)
+					mFragmentBuf.Insert(mTiles[i].fragmentBuf.Data(), mTiles[i].fragmentBuf.Size(), mFragmentBuf.Size());
 			}
 		}
 
@@ -248,7 +249,7 @@ namespace EDX
 		{
 			for (auto coreId = 0; coreId < mNumCores; coreId++)
 			{
-				for (auto j = 0; j < tile.triangleRefs[coreId].size(); j++)
+				for (auto j = 0; j < tile.triangleRefs[coreId].Size(); j++)
 				{
 					const Tile::TriangleRef& triRef = tile.triangleRefs[coreId][j];
 					RasterTriangle& tri = mpRasterTriangleBuf[coreId][triRef.triId];
@@ -270,8 +271,8 @@ namespace EDX
 
 		void Renderer::FragmentProcessing()
 		{
-			//for (auto i = 0; i < mFragmentBuf.size(); i++)
-			parallel_for(0, (int)mFragmentBuf.size(), [&](int i)
+			//for (auto i = 0; i < mFragmentBuf.Size(); i++)
+			parallel_for(0, (int)mFragmentBuf.Size(), [&](int i)
 			{
 				Fragment& frag = mFragmentBuf[i];
 
@@ -303,9 +304,9 @@ namespace EDX
 
 		void Renderer::UpdateFrameBuffer()
 		{
-			parallel_for(0, (int)mTiledShadingResultBuf.size(), [&](int i)
+			parallel_for(0, (int)mTiledShadingResultBuf.Size(), [&](int i)
 			{
-				for (auto j = 0; j < mTiles[i].fragmentBuf.size(); j++)
+				for (auto j = 0; j < mTiles[i].fragmentBuf.Size(); j++)
 				{
 					const Fragment& frag = mTiles[i].fragmentBuf[j];
 					for (auto sId = 0; sId < mpFrameBuffer->GetSampleCount(); sId++)
@@ -363,8 +364,10 @@ namespace EDX
 
 		Renderer::~Renderer()
 		{
-			SafeDeleteArray(mpDistributedProjVertexBuf);
-			SafeDeleteArray(mpRasterTriangleBuf);
+			Memory::SafeDeleteArray(mpDistributedProjVertexBuf);
+			Memory::SafeDeleteArray(mpRasterTriangleBuf);
+
+			RenderStates::DeleteInstance();
 		}
 	}
 }

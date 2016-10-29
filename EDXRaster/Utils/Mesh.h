@@ -4,7 +4,7 @@
 #include "Graphics/Texture.h"
 #include "Math/BoundingBox.h"
 
-#include "Memory/RefPtr.h"
+#include "Core/SmartPointer.h"
 
 namespace EDX
 {
@@ -17,11 +17,11 @@ namespace EDX
 		class Mesh
 		{
 		private:
-			RefPtr<VertexBuffer<struct Vertex_PositionNormalTex>> mpVertexBuf;
-			RefPtr<IndexBuffer> mpIndexBuf;
+			UniquePtr<class IVertexBuffer> mpVertexBuf;
+			UniquePtr<IndexBuffer> mpIndexBuf;
 
-			vector<RefPtr<Texture2D<Color>>> mTextures;
-			vector<uint> mTexIdx;
+			Array<UniquePtr<Texture2D<Color>>> mTextures;
+			Array<uint> mTexIdx;
 
 			BoundingBox mBounds;
 
@@ -43,19 +43,19 @@ namespace EDX
 				const int slices = 64,
 				const int stacks = 64);
 
-			const VertexBuffer<Vertex_PositionNormalTex>* GetVertexBuffer() const
+			const IVertexBuffer* GetVertexBuffer() const
 			{
-				return mpVertexBuf.Ptr();
+				return mpVertexBuf.Get();
 			}
 			IndexBuffer* GetIndexBuffer() const
 			{
-				return mpIndexBuf.Ptr();
+				return mpIndexBuf.Get();
 			}
-			const vector<RefPtr<Texture2D<Color>>>& GetTextures() const
+			const Array<UniquePtr<Texture2D<Color>>>& GetTextures() const
 			{
 				return mTextures;
 			}
-			const vector<uint>& GetTextureIds() const
+			const Array<uint>& GetTextureIds() const
 			{
 				return mTexIdx;
 			}

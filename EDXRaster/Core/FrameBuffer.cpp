@@ -22,7 +22,7 @@ namespace EDX
 			mTileDimX = tileDim.x;
 			mTileDimY = tileDim.y;
 
-			mTiledDepthBuffer.resize(tileDim.x * tileDim.y);
+			mTiledDepthBuffer.Resize(tileDim.x * tileDim.y);
 			for (auto& it : mTiledDepthBuffer)
 				it.Init(Vector3i(mSampleCount, Tile::SIZE >> 1, Tile::SIZE >> 1));
 		}
@@ -31,7 +31,7 @@ namespace EDX
 		{
 			mColorBuffer.Free();
 			mColorBufferMS.Free();
-			mTiledDepthBuffer.clear();
+			mTiledDepthBuffer.Clear();
 
 			Init(iWidth, iHeight, tileDim, sampleCountLog2);
 		}
@@ -55,7 +55,7 @@ namespace EDX
 		{
 			const int tileX = x >> Tile::SIZE_LOG_2;
 			const int tileY = y >> Tile::SIZE_LOG_2;
-			Array<3, FloatSSE>& currTileDepths = mTiledDepthBuffer[tileY * mTileDimX + tileX];
+			DimensionalArray<3, FloatSSE>& currTileDepths = mTiledDepthBuffer[tileY * mTileDimX + tileX];
 
 			const int intraTileX = x & (Tile::SIZE - 1);
 			const int intraTileY = y & (Tile::SIZE - 1);
@@ -97,7 +97,7 @@ namespace EDX
 			int tileCount = mTileDimX * mTileDimY;
 			parallel_for(0, tileCount, [&](int i)
 			{
-				Array<3, FloatSSE>& currTileDepths = mTiledDepthBuffer[i];
+				DimensionalArray<3, FloatSSE>& currTileDepths = mTiledDepthBuffer[i];
 
 				for (auto j = 0; j < currTileDepths.LinearSize(); j++)
 					currTileDepths[j] = 1.0f;

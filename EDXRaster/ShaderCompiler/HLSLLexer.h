@@ -24,11 +24,11 @@ namespace EDX
 				// Init mString and other pointers here
 			}
 
-			vector<HLSLToken> Tokenize(const char* fileName,
+			Array<HLSLToken> Tokenize(const char* fileName,
 				const string& str,
-				vector<CompileError>& ErrorList)
+				Array<CompileError>& ErrorList)
 			{
-				vector<HLSLToken> ret;
+				Array<HLSLToken> ret;
 
 				while (HasCharsAvailable())
 				{

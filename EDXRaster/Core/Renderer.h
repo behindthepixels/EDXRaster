@@ -1,13 +1,12 @@
 #pragma once
 
+#include "EDXPrerequisites.h"
 #include "RenderStates.h"
 #include "Shader.h"
 #include "RasterTriangle.h"
 #include "Tile.h"
 #include "../Utils/InputBuffer.h"
-#include "Windows/Thread.h"
-#include "Memory/RefPtr.h"
-#include "EDXPrerequisites.h"
+#include "Windows/Threading.h"
 
 namespace EDX
 {
@@ -16,19 +15,19 @@ namespace EDX
 		class Renderer
 		{
 		private:
-			RefPtr<class FrameBuffer> mpFrameBuffer;
-			RefPtr<class Rasterizer> mpRasterizer;
-			RefPtr<class VertexShader> mpVertexShader;
-			RefPtr<class PixelShader> mpPixelShader;
-			RefPtr<class Scene> mpScene;
+			UniquePtr<class FrameBuffer> mpFrameBuffer;
+			UniquePtr<class Rasterizer> mpRasterizer;
+			UniquePtr<class VertexShader> mpVertexShader;
+			UniquePtr<class PixelShader> mpPixelShader;
+			UniquePtr<class Scene> mpScene;
 
-			vector<ProjectedVertex> mProjectedVertexBuf;
-			vector<ProjectedVertex>* mpDistributedProjVertexBuf;
-			vector<RasterTriangle>* mpRasterTriangleBuf;
-			vector<Fragment> mFragmentBuf;
-			vector<vector<IntSSE>> mTiledShadingResultBuf;
+			Array<ProjectedVertex> mProjectedVertexBuf;
+			Array<ProjectedVertex>* mpDistributedProjVertexBuf;
+			Array<RasterTriangle>* mpRasterTriangleBuf;
+			Array<Fragment> mFragmentBuf;
+			Array<Array<IntSSE>> mTiledShadingResultBuf;
 
-			vector<Tile> mTiles;
+			Array<Tile> mTiles;
 			Vector2i mTileDim;
 
 			int mNumCores;
@@ -52,7 +51,7 @@ namespace EDX
 
 		private:
 			void VertexProcessing(const IVertexBuffer* pVertexBuf);
-			void Clipping(IndexBuffer* pIndexBuf, const vector<uint>& texIdBuf);
+			void Clipping(IndexBuffer* pIndexBuf, const Array<uint>& texIdBuf);
 			void TiledRasterization();
 			void RasterizeTile(Tile& tile);
 			void FragmentProcessing();
