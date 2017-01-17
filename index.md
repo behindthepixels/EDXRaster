@@ -18,6 +18,7 @@ EDXRay is currently built and tested only on Windows platform. Developer using V
   - Perspective Corrected Interpolation
   - Pixel Shading
   - Depth Test
-  
-  ## 64 Bit Windows Binary
-  [EDXRaster](assets/EDXRaster.exe)
+ 
+ 
+## 64 Bit Windows Binary
+[EDXRaster](assets/EDXRaster.exe)
