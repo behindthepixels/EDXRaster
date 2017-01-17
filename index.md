@@ -1,5 +1,5 @@
 ![](assets/RasterHeader.jpg)  
-**EDXRaster** is an highly performant software renderer based on rasterization, independently developed by [Edward Liu](http://behindthepixels.info/). This renderer is written with C++ and SSE and is highly optimized. Most of the D3D11 pipeline is implemented.
+**EDXRaster** is an highly optimized software renderer based on rasterization, independently developed by [Edward Liu](http://behindthepixels.info/). This renderer is written with C++ and SSE and is highly optimized. Most of the D3D11 pipeline is implemented.
 
 The source code of EDXRay is highly self-contained and does not depend on any external library other than [EDXUtil](https://github.com/EDXGraphics/EDXUtil), which is a utility library developed by Edward Liu.
 
