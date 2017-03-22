@@ -1,10 +1,10 @@
 # EDXRaster
 
-Please go to [behindthepixels.info/EDXRaster/](http://behindthepixels.info/EDXRaster/) for more detailed introduction.
+Please go to [behindthepixels.io/EDXRaster/](http://behindthepixels.io/EDXRaster/) for more detailed introduction.
 
-**EDXRaster** is an highly optimized software renderer based on rasterization, independently developed by [Edward Liu](http://behindthepixels.info/). This renderer is written with C++ and SSE and is highly optimized. Most of the D3D11 pipeline is implemented.
+**EDXRaster** is an highly optimized software renderer based on rasterization, independently developed by [Edward Liu](http://behindthepixels.io/). This renderer is written with C++ and SSE and is highly optimized. Most of the D3D11 pipeline is implemented.
 
-The source code of EDXRaster is highly self-contained and does not depend on any external library other than [EDXUtil](https://github.com/EDXGraphics/EDXUtil), which is a utility library developed by Edward Liu.
+The source code of EDXRaster is highly self-contained and does not depend on any external library other than [EDXUtil](https://github.com/behindthepixels/EDXUtil), which is a utility library developed by Edward Liu.
 
 EDXRaster is currently built and tested only on Windows platform. Developer using Visual Studio 2015 should be able to build the source code immediately after syncing. Porting to Linux or macOS should not be difficult since it there is no external dependency.
 
